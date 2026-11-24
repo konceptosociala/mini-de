@@ -12,11 +12,6 @@ dbus-update-activation-environment --systemd DISPLAY XAUTHORITY XDG_CURRENT_DESK
     GTK_IM_MODULE QT_IM_MODULE XMODIFIERS
 pkill -x ibus-daemon      # in case something started it anyway; see environment
 
-# Leftovers of a session whose X server went away (e.g. a gdm restart): systemd refuses to start bamf
-# again, and the old portal hangs for 25 s. Plank needs both at startup.
-timeout 3 systemctl --user reset-failed bamfdaemon.service xdg-desktop-portal.service xdg-desktop-portal-gtk.service 2>/dev/null
-timeout 3 systemctl --user try-restart xdg-desktop-portal.service 2>/dev/null
-
 "$CONF/openbox/monitors.sh"
 
 # Like GNOME does: without it some programs (Alacritty, winit, Bevy) scale by the physical size of the screen
@@ -48,6 +43,17 @@ lxpolkit &                                    # password prompts
 dunst &                                       # notifications
 xss-lock -- i3lock -n -c "${LOCK_COLOR#\#}" &             # lock on suspend
 xset s 600 dpms 600 600 900
+
+# Leftovers of the previous session. When its X server goes away, the portal tries to start its GTK part
+# without a screen; the bus then waits 2 minutes for that, and Plank and the launcher hang waiting for the
+# portal. Starting the services by hand, the GTK part first, ends the wait. A hung launcher keeps its
+# name on the bus, so it has to go too.
+pkill -u "$(id -u)" -f "$CONF/openbox/launcher.py"
+pkill -u "$(id -u)" -x plank
+SERVICES="xdg-desktop-portal-gtk.service xdg-desktop-portal.service bamfdaemon.service"
+timeout 3 systemctl --user stop $SERVICES 2>/dev/null
+timeout 3 systemctl --user reset-failed $SERVICES 2>/dev/null
+for s in $SERVICES; do timeout 5 systemctl --user start "$s" 2>/dev/null; done
 
 "$CONF/polybar/launch.sh" &
 "$CONF/openbox/keep-visible.py" &           # windows cannot get stuck under the panel

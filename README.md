@@ -68,7 +68,7 @@ GNOME's own screen lock depends on GDM and does not work with LightDM.
 |---|---|
 | `Super` | app launcher; `Ctrl+H` in it shows hidden apps |
 | `Super+Space` | keyboard layout; hold `Super` to go further, `Shift` back, `Esc` cancel |
-| `Super+Enter`, `Super+E` | terminal, files |
+| `Super+Enter` or `Ctrl+Alt+T`, `Super+E` | terminal, files |
 | `Super+Tab`, `Alt+Tab` | window list; switch windows (large icons, most recent first) |
 | `Super+←` / `→` | left / right half of the screen |
 | `Super+↑` / `↓` | maximize / minimize |

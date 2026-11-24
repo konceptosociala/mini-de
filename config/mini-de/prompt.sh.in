@@ -14,6 +14,7 @@ unset -f __md_rgb
 __md_arrow=$'' __md_i_user=$'' __md_i_dir=$'' __md_i_git=$'' __md_i_env=$'' __md_i_err=$''
 VIRTUAL_ENV_DISABLE_PROMPT=1
 PROMPT_DIRTRIM=4
+__md_branch_max=20      # longer branch names are cut
 
 # The branch of the repository around $PWD; git itself only runs inside one
 __md_git_info() {
@@ -24,6 +25,7 @@ __md_git_info() {
         d=${d%/*}
     done
     __md_branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null) || return
+    [ ${#__md_branch} -le $__md_branch_max ] || __md_branch=${__md_branch:0:__md_branch_max - 1}…
     # a slow repository must not slow the prompt down
     timeout 0.3 git diff --quiet --ignore-submodules HEAD -- 2>/dev/null
     [ $? = 1 ] && __md_branch+=' ●'

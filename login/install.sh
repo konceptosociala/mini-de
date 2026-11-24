@@ -10,6 +10,9 @@ THEME=/usr/share/themes/mini-de-login
 BACKGROUND=/usr/share/backgrounds/mini-de-login.png
 CONF=/etc/lightdm/lightdm-gtk-greeter.conf.d/90-mini-de.conf
 SEAT=/etc/lightdm/lightdm.conf.d/90-mini-de.conf
+WRAPPER=/usr/local/lib/mini-de-greeter
+LOCALES=/usr/share/locale          # <language>@minide: a catalog with one shorter message
+LOCAL_CONF=${XDG_CONFIG_HOME:-$HOME/.config}/mini-de/local.conf
 say()  { printf '\033[1;33m==>\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31m!!\033[0m %s\n' "$*" >&2; exit 1; }
 [ "$(id -u)" -ne 0 ] || die "Run this as a regular user: it asks for sudo when needed."
@@ -30,7 +33,7 @@ choose_dm() {
 if [ "${1:-}" = --uninstall ]; then
     say "Back to GDM"
     choose_dm gdm3 /usr/sbin/gdm3
-    sudo rm -rf "$THEME" "$BACKGROUND" "$CONF" "$SEAT"
+    sudo rm -rf "$THEME" "$BACKGROUND" "$CONF" "$SEAT" "$WRAPPER" "$LOCALES"/*@minide
     say "Done, reboot to see it. The LightDM packages stay: sudo apt remove lightdm lightdm-gtk-greeter"
     exit
 fi
@@ -60,7 +63,50 @@ sudo chown -R root:root "$THEME"
 sudo chmod -R u=rwX,go=rX "$THEME"
 sudo install -m 644 "$wallpaper" "$BACKGROUND"
 
+say "Messages"
+# "Your password is incorrect. Please try again." does not wrap and stretches the login window
+python3 - "$tmp/locale" <<'EOF'
+import os, struct, sys
+MSG = "Your password is incorrect. Please try again."
+HEAD = "Content-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+for lang, text in {"en": "Wrong password", "uk": "Неправильний пароль", "ru": "Неверный пароль"}.items():
+    pairs = [(b"", HEAD.encode()), (MSG.encode(), text.encode())]
+    ids, strs, data, at = [], [], b"", 28 + 16 * len(pairs)
+    for n in (0, 1):
+        for p in pairs:
+            (strs if n else ids).append((len(p[n]), at + len(data)))
+            data += p[n] + b"\0"
+    mo = struct.pack("<7I", 0x950412de, 0, len(pairs), 28, 28 + 8 * len(pairs), 0, 0)
+    mo += b"".join(struct.pack("<2I", *x) for x in ids + strs) + data
+    d = os.path.join(sys.argv[1], lang + "@minide", "LC_MESSAGES")
+    os.makedirs(d)
+    with open(os.path.join(d, "lightdm-gtk-greeter.mo"), "wb") as f:
+        f.write(mo)
+EOF
+cat > "$tmp/greeter" <<'EOF'
+#!/bin/sh
+# Starts the LightDM greeter with the messages of mini-de. Installed by login/install.sh.
+lang=${LANGUAGE:-${LC_ALL:-${LC_MESSAGES:-$LANG}}}
+lang=${lang%%[:_.@]*}
+[ ! -d "/usr/share/locale/$lang@minide" ] || export LANGUAGE="$lang@minide:${LANGUAGE:-${LANG%%.*}}"
+[ ! -x /usr/lib/lightdm/lightdm-greeter-session ] || exec /usr/lib/lightdm/lightdm-greeter-session "$@"
+exec "$@"
+EOF
+sudo cp -r "$tmp/locale/." "$LOCALES/"
+sudo chmod -R u=rwX,go=rX "$LOCALES"/*@minide
+sudo install -D -m 755 "$tmp/greeter" "$WRAPPER"
+
 say "Configuration"
+# Keyboard layouts from local.conf, only these are offered; none without at least two of them
+LAYOUTS=us; VARIANTS=
+[ ! -r "$LOCAL_CONF" ] || . "$LOCAL_CONF"
+IFS=, read -ra layouts <<< "$LAYOUTS"
+IFS=, read -ra variants <<< "$VARIANTS"
+list=; layout=
+for i in "${!layouts[@]}"; do
+    list+="${layouts[i]}${variants[i]:+\\t${variants[i]}};"
+done
+((${#layouts[@]} < 2)) || layout='~layout;'
 sudo install -d "$(dirname "$CONF")" "$(dirname "$SEAT")"
 sudo tee "$CONF" >/dev/null <<EOF
 [greeter]
@@ -77,7 +123,9 @@ xft-rgba=rgb
 xft-dpi=96
 position=50%,center 50%,center
 clock-format=%a %d %b   %H:%M
-indicators=~host;~spacer;~clock;~spacer;~layout;~session;~power
+# menus are far from each other: moving the pointer over a neighbour opens it
+indicators=~host;~session;~spacer;~clock;$layout~spacer;~power
+keyboard-layouts=$list
 hide-user-image=false
 round-user-image=true
 EOF
@@ -85,6 +133,7 @@ sudo tee "$SEAT" >/dev/null <<EOF
 [Seat:*]
 greeter-session=lightdm-gtk-greeter
 user-session=openbox
+greeter-wrapper=$WRAPPER
 EOF
 choose_dm lightdm /usr/sbin/lightdm
 say "Done. LightDM will start after a reboot."

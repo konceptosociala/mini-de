@@ -1,9 +1,11 @@
 /* Login screen, added on top of the GTK theme by login/install.sh. Colors: IntelliJ New UI Dark. */
 * { font-family: Inter; }
-#panel_window { background-color: rgba(30, 31, 34, 0.80); color: #dfe1e5; border: none; box-shadow: none; font-weight: 500; padding: 4px 10px; }
+#panel_window { background-color: rgba(30, 31, 34, 0.80); color: #dfe1e5; border: none; box-shadow: none; font-weight: 500; padding: 0 8px; }
 #panel_window menubar, #panel_window menubar > menuitem { background-color: transparent; color: #dfe1e5; border: none; box-shadow: none; }
+#panel_window menubar > menuitem { min-height: 40px; padding: 0 14px; }
+#layout_menuitem > label { margin: 0 14px; }     /* the greeter sets its own padding */
 #panel_window menubar > menuitem:hover { background-color: rgba(223, 225, 229, 0.12); border-radius: 6px; }
-#login_window, #shutdown_dialog, #restart_dialog { background-color: rgba(43, 45, 48, 0.94); color: #dfe1e5; border: 1px solid #4f5156; border-radius: 16px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); }
+#login_window, #shutdown_dialog, #restart_dialog { background-color: rgba(43, 45, 48, 0.94); color: #dfe1e5; border: 1px solid #4f5156; border-radius: 16px; box-shadow: none; }
 #content_frame { padding: 30px 34px 18px 34px; border: none; background-color: transparent; }
 #buttonbox_frame { padding: 0 34px 26px 34px; border: none; background-color: transparent; }
 #login_window #user_combobox button, #login_window entry { background-image: none; background-color: #1e1f22; color: #dfe1e5; border: 1px solid #4f5156; border-radius: 8px; min-height: 38px; padding: 0 12px; box-shadow: none; }
@@ -11,4 +13,17 @@
 #login_button { background-image: none; background-color: #3574f0; color: #ffffff; border: none; border-radius: 8px; min-height: 36px; padding: 0 22px; box-shadow: none; }
 #login_button:hover { background-color: #467ff2; }
 #cancel_button { background-image: none; background-color: #393b40; color: #dfe1e5; border: none; border-radius: 8px; min-height: 36px; padding: 0 22px; box-shadow: none; }
-#message_label { color: #db5c5c; }
+/* The error is a bubble in the gap above the password. The greeter puts it between the form and the buttons, so
+   the form gets a negative margin: the bubble lands on top of it. The buttons make up for the margin, and for the
+   height of the bubble when it is there (an invisible sibling does not match). */
+#login_window #prompt_entry { margin-top: 32px; }
+#login_window #content_frame { margin-bottom: -104px; }
+#login_window #buttonbox_frame { margin-top: 104px; }
+#login_window #greeter_infobar + #buttonbox_frame { margin-top: 76px; }
+#greeter_infobar { margin: 0 58px 0 156px; padding: 0; min-height: 28px; background-color: transparent; background-image: none; border: none; box-shadow: none; }
+#greeter_infobar > revealer > box { background-image: none; background-color: #4a2d30; border: 1px solid #8c3c3c; border-radius: 8px; padding: 0 12px; min-height: 26px; box-shadow: none; }
+#message_label, #greeter_infobar label { color: #ff9a9a; font-size: 13px; font-weight: 500; margin: -5px 0; }
+/* There is no compositor here: round popup windows would get dark corners. */
+window.popup, window.popup decoration, .csd.popup decoration, tooltip, tooltip.background, #panel_window menubar .popup decoration, #login_window combobox .popup decoration { border-radius: 0; box-shadow: none; margin: 0; padding: 0; background-color: #2b2d30; }
+#panel_window menubar menu, #panel_window menubar menu:dir(ltr), #panel_window menubar menu:dir(rtl), #login_window combobox menu, #login_window combobox menu:dir(ltr), #login_window combobox menu:dir(rtl) { border-radius: 0; box-shadow: none; margin: 0; background-color: #2b2d30; border: 1px solid #4f5156; padding: 6px 0; }
+#panel_window menubar menu menuitem, #panel_window menubar menu menuitem:dir(ltr), #panel_window menubar menu menuitem:dir(rtl), #login_window combobox menu menuitem:dir(ltr) { border-radius: 0; min-height: 28px; padding: 2px 16px; }

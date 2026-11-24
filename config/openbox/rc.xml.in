@@ -289,6 +289,7 @@
   <!-- Launch scrot when Print is pressed -->
   
   <keybind key="W-Return"><action name="Execute"><command>alacritty</command></action></keybind>
+  <keybind key="C-A-t"><action name="Execute"><command>alacritty</command></action></keybind>
   <keybind key="W-e"><action name="Execute"><command>nautilus --new-window</command></action></keybind>
   <keybind key="A-F2"><action name="Execute"><command>rofi -show run</command></action></keybind>
   <keybind key="W-Tab"><action name="Execute"><command>rofi -show window -show-icons</command></action></keybind>
@@ -757,6 +758,11 @@
 
   # end of the example
 -->
+
+  <!-- terminals open in the center of the screen -->
+  <application class="Alacritty">
+    <position force="yes"><x>center</x><y>center</y></position>
+  </application>
 </applications>
 
 </openbox_config>
