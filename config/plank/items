@@ -1,0 +1,19 @@
+# What to pin to the dock on first install, in order.
+# Apps that are not installed are skipped, * is allowed.
+nemo.desktop
+firefox.desktop
+Alacritty.desktop
+blender.desktop
+com.microsoft.VSCode.desktop
+org.telegram.desktop*.desktop
+kebab-editor.desktop
+slack.desktop
+lxtask.desktop
+qalculate-gtk.desktop
+obsidian.desktop
+gimp.desktop
+org.inkscape.Inkscape.desktop
+libreoffice-calc.desktop
+libreoffice-writer.desktop
+discord.desktop
+nl.hjdskes.gcolor3.desktop

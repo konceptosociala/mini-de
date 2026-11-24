@@ -1,0 +1,6 @@
+[docks/dock1]
+hide-mode='intelligent'
+icon-size=60
+theme='Gtk+'
+zoom-enabled=true
+zoom-percent=105

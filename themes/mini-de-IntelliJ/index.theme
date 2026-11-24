@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=mini-de-IntelliJ
+Comment=adw-gtk3 in IntelliJ New UI Dark colors
+
+[X-GNOME-Metatheme]
+GtkTheme=mini-de-IntelliJ

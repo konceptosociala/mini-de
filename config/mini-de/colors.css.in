@@ -1,0 +1,11 @@
+/* variant @VARIANT@, filled in by install.sh --variant; used by launcher.py and kb-switch.py */
+@define-color md_surface @SURFACE@;
+@define-color md_panel @BG@;
+@define-color md_border @BORDER@;
+@define-color md_raised @RAISED@;
+@define-color md_fg @FG@;
+@define-color md_dim @DIM@;
+@define-color md_accent @ACCENT@;
+@define-color md_accent_text @ACCENT_TEXT@;
+@define-color md_on_accent @ON_ACCENT@;
+@define-color md_tile @TILE@;

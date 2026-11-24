@@ -1,0 +1,37 @@
+/* adw-gtk3 (installed by install.sh) recolored to IntelliJ IDEA New UI Dark */
+@import url("../../adw-gtk3-dark/gtk-3.0/gtk.css");
+
+@define-color accent_bg_color #3574f0;
+@define-color accent_fg_color #ffffff;
+@define-color accent_color #6a9bfa;
+@define-color destructive_bg_color #c94f4f;
+@define-color destructive_color #db5c5c;
+@define-color error_bg_color #c94f4f;
+@define-color error_color #db5c5c;
+@define-color success_bg_color #57965c;
+@define-color success_color #5fad65;
+@define-color warning_bg_color #d6ae58;
+@define-color warning_color #f2c55c;
+
+@define-color window_bg_color #2b2d30;
+@define-color window_fg_color #dfe1e5;
+@define-color view_bg_color #1e1f22;
+@define-color view_fg_color #dfe1e5;
+@define-color headerbar_bg_color #2b2d30;
+@define-color headerbar_fg_color #dfe1e5;
+@define-color headerbar_border_color #dfe1e5;
+@define-color headerbar_backdrop_color #1e1f22;
+@define-color headerbar_shade_color #1e1f22;
+@define-color headerbar_darker_shade_color #1e1f22;
+@define-color sidebar_bg_color #2b2d30;
+@define-color sidebar_fg_color #dfe1e5;
+@define-color sidebar_backdrop_color #2b2d30;
+@define-color sidebar_border_color #1e1f22;
+@define-color card_bg_color #393b40;
+@define-color card_fg_color #dfe1e5;
+@define-color dialog_bg_color #2b2d30;
+@define-color dialog_fg_color #dfe1e5;
+@define-color popover_bg_color #2b2d30;
+@define-color popover_fg_color #dfe1e5;
+@define-color thumbnail_bg_color #393b40;
+@define-color thumbnail_fg_color #dfe1e5;

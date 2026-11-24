@@ -1,0 +1,8 @@
+configuration {
+    show-icons: true;
+    /* single click launches, the selection follows the mouse */
+    hover-select: true;
+    me-select-entry: "";
+    me-accept-entry: "MousePrimary";
+}
+@theme "@ROFI@"

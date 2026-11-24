@@ -1,0 +1,16 @@
+# Settings of this machine. install.sh puts this file in ~/.config/mini-de/local.conf
+# and never touches it again. Shell syntax.
+
+# Comma-separated layouts, at most four (an X11 limit)
+LAYOUTS=us
+# Variants in the same order, for example: VARIANTS=,dvorak
+VARIANTS=
+# Mice without acceleration: regular expression matching names from `xinput list`
+FLAT_MOUSE=
+WALLPAPER=/usr/share/backgrounds/warty-final-ubuntu.png
+
+# Usually detected automatically; uncomment if detection gets it wrong
+#MONITORS_CMD='xrandr --output eDP-1 --primary --auto --output HDMI-1 --auto --above eDP-1'
+#BATTERY=BAT0
+#ADAPTER=AC
+#BACKLIGHT=intel_backlight

@@ -1,0 +1,2 @@
+# variant @VARIANT@, read by autostart
+LOCK_COLOR='@SURFACE@'

@@ -1,0 +1,22 @@
+/* rofi in the colors of the current variant; gruvbox variants use rofi's own themes instead */
+* {
+    bg: @BG@; surface: @SURFACE@; border-c: @BORDER@; fg: @FG@; dim: @DIM@; hilite: @HILITE@; hilite-fg: @HILITE_FG@;
+    accent: @ACCENT@; on-accent: @ON_ACCENT@; red: @RED@;
+    font: "Ubuntu Sans 13"; background-color: transparent; text-color: @fg;
+}
+window { background-color: @bg; border: 1px; border-color: @border-c; border-radius: 10px; padding: 10px; width: 640px; }
+mainbox { spacing: 8px; }
+inputbar { background-color: @surface; border: 1px; border-color: @accent; border-radius: 6px; padding: 8px 10px; spacing: 8px; children: [ prompt, entry ]; }
+prompt { text-color: @dim; }
+entry { placeholder-color: @dim; }
+message { background-color: @surface; border-radius: 6px; padding: 8px; }
+listview { lines: 10; spacing: 2px; scrollbar: true; }
+scrollbar { handle-color: @border-c; handle-width: 6px; border-radius: 3px; }
+element { padding: 7px 10px; spacing: 10px; border-radius: 6px; }
+element selected.normal { background-color: @hilite; text-color: @hilite-fg; }
+element normal.active { text-color: @accent; }
+element selected.active { background-color: @accent; text-color: @on-accent; }
+element normal.urgent, element alternate.urgent { text-color: @red; }
+element selected.urgent { background-color: @red; text-color: @on-accent; }
+element-icon { size: 1.2em; }
+element-text, element-icon { text-color: inherit; vertical-align: 0.5; }

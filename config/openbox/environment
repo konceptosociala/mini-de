@@ -1,0 +1,5 @@
+# Read by openbox-session before the WM starts
+export XDG_CURRENT_DESKTOP=OPENBOX
+export XDG_SESSION_DESKTOP=openbox
+export XCURSOR_THEME=Yaru
+export XCURSOR_SIZE=24

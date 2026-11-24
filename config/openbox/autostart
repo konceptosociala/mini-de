@@ -1,0 +1,44 @@
+#!/bin/sh
+# Runs when the Openbox session starts
+
+# Defaults; set your own in ~/.config/mini-de/local.conf
+LAYOUTS=us; VARIANTS=; FLAT_MOUSE=; LOCK_COLOR=1d2021
+WALLPAPER=/usr/share/backgrounds/warty-final-ubuntu.png
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
+[ -r "$CONF/mini-de/colors.sh" ] && . "$CONF/mini-de/colors.sh"
+[ -r "$CONF/mini-de/local.conf" ] && . "$CONF/mini-de/local.conf"
+
+dbus-update-activation-environment --systemd DISPLAY XAUTHORITY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP
+
+"$CONF/openbox/monitors.sh"
+
+# Keyboard; Super+Space is handled by kb-switch.py
+setxkbmap -layout "$LAYOUTS" -variant "$VARIANTS" -option ''
+"$CONF/openbox/kb-switch.py" &
+
+# Touchpad
+for id in $(xinput list | grep -i touchpad | grep -o 'id=[0-9]*' | cut -d= -f2); do
+    xinput set-prop "$id" 'libinput Tapping Enabled' 1
+    xinput set-prop "$id" 'libinput Click Method Enabled' 1 0
+    xinput set-prop "$id" 'libinput Disable While Typing Enabled' 1
+done
+# Mice without acceleration
+if [ -n "$FLAT_MOUSE" ]; then
+    for id in $(xinput list | grep -iE "$FLAT_MOUSE" | grep -o 'id=[0-9]*' | cut -d= -f2); do
+        xinput set-prop "$id" 'libinput Accel Profile Enabled' 0 1 2>/dev/null ||
+            xinput set-prop "$id" 'libinput Accel Profile Enabled' 0 1 0
+    done
+fi
+
+xsettingsd &                                  # GTK theme, icons, cursor
+xsetroot -cursor_name left_ptr
+picom -b                                      # compositor
+feh --no-fehbg --bg-fill "$WALLPAPER" &
+lxpolkit &                                    # password prompts
+dunst &                                       # notifications
+xss-lock -- i3lock -n -c "${LOCK_COLOR#\#}" &             # lock on suspend
+xset s 600 dpms 600 600 900
+
+"$CONF/polybar/launch.sh" &
+"$CONF/openbox/launcher.py" --gapplication-service &   # launcher, opens on Super
+(sleep 1; plank) &
