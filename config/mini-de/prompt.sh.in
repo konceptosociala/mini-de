@@ -1,4 +1,4 @@
-# mini-de prompt for bash, variant @VARIANT@: user, folder, git branch and the exit code as colored arrows.
+# mini-de prompt for bash, variant @VARIANT@: user, folder and git branch as colored arrows.
 # Sourced from ~/.bashrc (install.sh --prompt). Needs a font with Powerline symbols, so the text console keeps its own.
 case $- in *i*) ;; *) return ;; esac
 case $TERM in linux | dumb | '') return ;; esac
@@ -9,9 +9,8 @@ __md_rgb __md_c_user '@BLUE@'
 __md_rgb __md_c_dir '@GREEN@'
 __md_rgb __md_c_git '@YELLOW@'
 __md_rgb __md_c_env '@PURPLE@'
-__md_rgb __md_c_err '@RED@'
 unset -f __md_rgb
-__md_arrow=$'' __md_i_user=$'' __md_i_dir=$'' __md_i_git=$'' __md_i_env=$'' __md_i_err=$''
+__md_arrow=$'' __md_i_user=$'' __md_i_dir=$'' __md_i_git=$'' __md_i_env=$''
 VIRTUAL_ENV_DISABLE_PROMPT=1
 PROMPT_DIRTRIM=4
 __md_branch_max=20      # longer branch names are cut
@@ -48,13 +47,12 @@ __md_prompt() {
     [ -z "$__md_venv" ] || __md_segment "$__md_c_env" "$__md_i_env "'${__md_venv}'
     __md_segment "$__md_c_dir" "$__md_i_dir \w"
     [ -z "$__md_branch" ] || __md_segment "$__md_c_git" "$__md_i_git "'${__md_branch}'
-    [ $__md_status = 0 ] || __md_segment "$__md_c_err" "$__md_i_err $__md_status"
     # window title, the segments, the last arrow
     PS1="\[\e]0;\u@\h: \w\a\]$__md_ps\[\e[0;38;2;${__md_prev}m\]$__md_arrow\[\e[0m\] "
     return $__md_status
 }
 
-# once, and before everything else that is already there, so that the exit code is still the command's
+# once, and before everything else that is already there, so that $? is still that of the command
 case ";${PROMPT_COMMAND[*]:-};" in
     *__md_prompt*) ;;
     *) PROMPT_COMMAND="__md_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
