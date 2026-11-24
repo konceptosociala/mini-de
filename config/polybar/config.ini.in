@@ -102,6 +102,8 @@ ramp-foreground = ${colors.yellow}
 
 [module/pulse]
 type = internal/pulseaudio
+; scrolling stops at 100 % instead of 153 %
+use-ui-max = false
 format-volume = <ramp-volume> <label-volume>
 format-volume-padding = 1
 label-volume = %percentage%%
@@ -116,7 +118,7 @@ ramp-volume-1 = 󰖀
 ramp-volume-2 = 󰕾
 ramp-volume-font = 2
 ramp-volume-foreground = ${colors.teal}
-click-right = gnome-control-center sound
+click-right = ~/.config/openbox/sound-settings.sh
 
 ; ── center ──
 [module/date]

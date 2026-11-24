@@ -296,8 +296,8 @@
   <keybind key="W-l"><action name="Execute"><command>loginctl lock-session</command></action></keybind>
   <keybind key="W-Escape"><action name="Execute"><command>sh -c &quot;~/.config/openbox/powermenu.sh&quot;</command></action></keybind>
   <keybind key="Print"><action name="Execute"><command>flameshot gui</command></action></keybind>
-  <keybind key="XF86AudioRaiseVolume"><action name="Execute"><command>pactl set-sink-volume @DEFAULT_SINK@ +5%</command></action></keybind>
-  <keybind key="XF86AudioLowerVolume"><action name="Execute"><command>pactl set-sink-volume @DEFAULT_SINK@ -5%</command></action></keybind>
+  <keybind key="XF86AudioRaiseVolume"><action name="Execute"><command>sh -c "~/.config/openbox/volume.sh up"</command></action></keybind>
+  <keybind key="XF86AudioLowerVolume"><action name="Execute"><command>sh -c "~/.config/openbox/volume.sh down"</command></action></keybind>
   <keybind key="XF86AudioMute"><action name="Execute"><command>pactl set-sink-mute @DEFAULT_SINK@ toggle</command></action></keybind>
   <keybind key="XF86AudioMicMute"><action name="Execute"><command>pactl set-source-mute @DEFAULT_SOURCE@ toggle</command></action></keybind>
   <keybind key="XF86MonBrightnessUp"><action name="Execute"><command>sh -c "~/.config/openbox/brightness.sh up"</command></action></keybind>

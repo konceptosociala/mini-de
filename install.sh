@@ -11,7 +11,7 @@ MANIFEST=$STATE/manifest          # lines: installed file <TAB> saved original o
 PACKAGES=(
     openbox polybar plank rofi picom feh dunst lxpolkit playerctl
     xss-lock i3lock xsettingsd flameshot alacritty nautilus
-    network-manager-gnome pulseaudio-utils libnotify-bin libglib2.0-bin curl ca-certificates xz-utils fontconfig dconf-cli dbus-bin
+    network-manager-gnome pulseaudio-utils pavucontrol libnotify-bin libglib2.0-bin curl ca-certificates xz-utils fontconfig dconf-cli dbus-bin
     x11-xserver-utils x11-xkb-utils xinput libxi6 libxinerama1 xdg-desktop-portal-gtk
     librsvg2-common python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 python3-xdg
     fonts-inter fonts-dejavu-core qt5-style-kvantum qt5-gtk-platformtheme qt6-gtk-platformtheme
