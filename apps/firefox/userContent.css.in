@@ -1,0 +1,11 @@
+/* mini-de, variant @VARIANT@: Firefox's own pages */
+@-moz-document url-prefix("about:") {
+  :root {
+    --newtab-background-color: @SURFACE@ !important;
+    --newtab-background-color-secondary: @BG@ !important;
+    --background-color-canvas: @SURFACE@ !important;
+    --background-color-box: @BG@ !important;
+    --color-accent-primary: @ACCENT@ !important;
+  }
+  body { background-color: @SURFACE@ !important; }
+}

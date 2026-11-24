@@ -1,9 +1,9 @@
 #!/usr/bin/python3
-"""Full-screen launcher with the app folders from GNOME.
+"""Full-screen launcher with the app folders from GNOME and a .hidden folder (Ctrl+H).
   launcher.py                         show / hide
   launcher.py --gapplication-service  stay in the background (autostart)"""
 import ctypes as C
-import math, os, sys
+import math, os, sys, uuid
 import cairo
 import gi
 gi.require_version("Gtk", "3.0")
@@ -12,9 +12,9 @@ gi.require_version("GdkX11", "3.0")
 from gi.repository import Gtk, Gdk, GdkX11, Gio, GLib, Pango
 
 # ── Appearance ──────────────────────────────────────────────
-ICON = 72            # app icon
-MINI = 24            # icon inside a folder tile (3x3)
-CELL_W, CELL_H = 160, 162
+ICON = 84            # app icon
+MINI = 28            # icon inside a folder tile (3x3)
+CELL_W, CELL_H = 172, 180
 ZOOM = 1.16          # how much an icon grows under the pointer
 PRESS = 0.92         # and shrinks when pressed
 ANIM_MS = 160        # animation duration
@@ -36,20 +36,27 @@ CSS = """
 #launcher { background: alpha(@md_surface, 0.90); }
 #launcher.opaque { background: @md_surface; }
 #launcher scrolledwindow, #launcher viewport, #launcher flowbox { background: transparent; border: none; }
-#search { font: 18px "Ubuntu Sans"; color: @md_fg; background: @md_raised; caret-color: @md_accent;
+#search { font: 18px "Inter"; color: @md_fg; background: @md_raised; caret-color: @md_accent;
           border: 2px solid @md_border; border-radius: 24px; padding: 8px 18px; box-shadow: none; }
 #search:focus { border-color: @md_accent; }
 #launcher flowboxchild { border-radius: 14px; padding: 0; background: transparent; outline: none;
                          transition: background 160ms ease-out; }
 #launcher flowboxchild.hover { background: alpha(@md_fg, 0.10); }
 #launcher flowboxchild:selected { background: alpha(@md_accent, 0.22); }
-#launcher label { color: @md_fg; font: 14px "Ubuntu Sans"; }
+#launcher label { color: @md_fg; font: 14px "Inter"; }
+#eye { color: @md_dim; background: transparent; border: none; box-shadow: none; border-radius: 24px; padding: 10px; }
+#eye:hover { color: @md_fg; background: alpha(@md_fg, 0.10); }
 #dim { background: rgba(0,0,0,0.55); }
+#launcher menu { background: @md_panel; border: 1px solid @md_border; padding: 4px; }
+#launcher menuitem { padding: 6px 12px; }
+#launcher menuitem:hover { background: alpha(@md_accent, 0.35); }
 #panel { background: @md_panel; border: 2px solid @md_border; border-radius: 20px; }
-#launcher #title { font: 700 22px "Ubuntu Sans"; color: @md_accent_text; }
-#launcher #empty { font: 18px "Ubuntu Sans"; color: @md_dim; }
+#launcher #title { font: 700 22px "Inter"; color: @md_accent_text; }
+#launcher #empty { font: 18px "Inter"; color: @md_dim; }
 """
 FOLDERS = "org.gnome.desktop.app-folders"
+HIDDEN = ".hidden"      # id and name of the special folder
+HIDDEN_FILE = os.path.join(GLib.get_user_config_dir(), "mini-de", "hidden-apps")   # one .desktop id per line
 USER_CSS = os.path.join(GLib.get_user_config_dir(), "mini-de", "colors.css")   # theme variant
 PLANK_DIR = os.path.join(GLib.get_user_config_dir(), "plank", "dock1", "launchers")
 FOLDER_PATH = "/org/gnome/desktop/app-folders/folders/%s/"
@@ -92,8 +99,8 @@ class App:
 
 
 class Folder:
-    def __init__(self, name, apps):
-        self.name, self.apps = name, apps
+    def __init__(self, name, apps, fid):
+        self.name, self.apps, self.fid = name, apps, fid
 
 
 def pinned_files():
@@ -128,9 +135,28 @@ def load_apps():
                   key=lambda a: a.name.casefold())
 
 
-def group(apps, pinned):
-    """Sort into GNOME folders; apps pinned to the dock are left out of the grid."""
-    shown = [a for a in apps if a.path not in pinned]
+def read_hidden():
+    try:
+        with open(HIDDEN_FILE) as f:
+            return {l.strip() for l in f if l.strip()}
+    except OSError:
+        return set()
+
+
+def set_hidden(app, hide):
+    """Hide the app or show it again; its GNOME folder is remembered by GNOME itself."""
+    ids = read_hidden()
+    (ids.add if hide else ids.discard)(app.id)
+    os.makedirs(os.path.dirname(HIDDEN_FILE), exist_ok=True)
+    tmp = HIDDEN_FILE + ".new"
+    with open(tmp, "w") as f:
+        f.writelines(i + "\n" for i in sorted(ids))
+    os.replace(tmp, HIDDEN_FILE)
+
+
+def group(apps, pinned, hidden=frozenset()):
+    """Sort into GNOME folders; hidden apps and apps pinned to the dock are left out of the grid."""
+    shown = [a for a in apps if a.path not in pinned and a.id not in hidden]
     by_id, folders, used = {a.id: a for a in shown}, [], set()
     src = Gio.SettingsSchemaSource.get_default()
     if src.lookup(FOLDERS, True) and src.lookup(FOLDERS + ".folder", True):
@@ -142,9 +168,69 @@ def group(apps, pinned):
             found = [a for a in found if a.id not in used]
             if found:
                 used |= {a.id for a in found}
-                folders.append(Folder(folder_name(s), found))
+                folders.append(Folder(folder_name(s), found, fid))
     folders.sort(key=lambda f: f.name.casefold())
     return folders, [a for a in shown if a.id not in used]
+
+
+# ── editing folders: the same settings GNOME uses, so both see every change ──
+def folder_settings(fid):
+    return Gio.Settings.new_with_path(FOLDERS + ".folder", FOLDER_PATH % fid)
+
+
+def set_folder(app, target):
+    """Put the app into the folder with this id, or into no folder (None)."""
+    if app.id in read_hidden():
+        set_hidden(app, False)
+    root = Gio.Settings.new(FOLDERS)
+    children = root.get_strv("folder-children")
+    for fid in children:
+        s = folder_settings(fid)
+        apps, skip = s.get_strv("apps"), s.get_strv("excluded-apps")
+        by_category = bool(app.cats & set(s.get_strv("categories")))
+        if fid == target:
+            new_apps = apps if app.id in apps else apps + [app.id]
+            new_skip = [i for i in skip if i != app.id]
+        else:
+            new_apps = [i for i in apps if i != app.id]
+            new_skip = skip + [app.id] if by_category and app.id not in skip else skip
+        if new_apps != apps:
+            s.set_strv("apps", new_apps)
+        if new_skip != skip:
+            s.set_strv("excluded-apps", new_skip)
+        if fid != target and apps and not new_apps and not s.get_strv("categories"):
+            drop_folder(fid)                  # like in GNOME, an empty folder goes away
+    Gio.Settings.sync()
+
+
+def drop_folder(fid):
+    """Remove the folder; its apps return to the grid."""
+    root, s = Gio.Settings.new(FOLDERS), folder_settings(fid)
+    root.set_strv("folder-children", [i for i in root.get_strv("folder-children") if i != fid])
+    for key in ("name", "translate", "apps", "excluded-apps", "categories"):
+        s.reset(key)
+    Gio.Settings.sync()
+
+
+def new_folder(name, apps):
+    root, fid = Gio.Settings.new(FOLDERS), str(uuid.uuid4())
+    s = folder_settings(fid)
+    s.set_string("name", name)
+    s.set_boolean("translate", False)
+    root.set_strv("folder-children", root.get_strv("folder-children") + [fid])
+    for a in apps:
+        set_folder(a, fid)
+    Gio.Settings.sync()
+
+
+def rename_folder(fid, name):
+    s = folder_settings(fid)
+    s.set_string("name", name)
+    s.set_boolean("translate", False)
+    Gio.Settings.sync()
+
+
+TARGETS = [Gtk.TargetEntry.new("application/x-mini-de-app", Gtk.TargetFlags.SAME_APP, 0)]
 
 
 class Art(Gtk.DrawingArea):
@@ -223,8 +309,9 @@ class Art(Gtk.DrawingArea):
 
 
 class Cell(Gtk.FlowBoxChild):
-    def __init__(self, item):
+    def __init__(self, item, owner=None):
         super().__init__(can_focus=False)
+        self.owner = owner                    # the launcher, when dragging is possible here
         self.item, self.hover, self.pressed = item, False, False
         self.set_size_request(CELL_W, CELL_H)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, margin=6)
@@ -244,6 +331,38 @@ class Cell(Gtk.FlowBoxChild):
         self.connect("state-flags-changed", lambda *_: self.update())
         ev.add(box)
         self.add(ev)
+        if owner:
+            if isinstance(item, App):
+                ev.drag_source_set(Gdk.ModifierType.BUTTON1_MASK, TARGETS, Gdk.DragAction.MOVE)
+                ev.connect("drag-begin", self.on_drag_begin)
+                ev.connect("drag-data-get", lambda _w, _c, data, *_: data.set(data.get_target(), 8, b"app"))
+                ev.connect("drag-end", lambda *_: owner.drag_ended())
+            ev.drag_dest_set(0, TARGETS, Gdk.DragAction.MOVE)
+            ev.connect("drag-motion", self.on_drag_motion)
+            ev.connect("drag-leave", lambda *_: self.reset())
+            ev.connect("drag-drop", self.on_drag_drop)
+
+    def on_drag_begin(self, _w, ctx):
+        self.reset()
+        pb = self.item.icon(ICON)
+        if pb:
+            Gtk.drag_set_icon_pixbuf(ctx, pb, pb.get_width() // 2, pb.get_height() // 2)
+        self.owner.dragged = self.item
+
+    def on_drag_motion(self, _w, ctx, _x, _y, time):
+        ok = self.owner.can_drop(self.item)
+        self.hover = ok
+        self.update()
+        Gdk.drag_status(ctx, Gdk.DragAction.MOVE if ok else 0, time)
+        return True                           # nothing behind this cell gets the drop
+
+    def on_drag_drop(self, _w, ctx, _x, _y, time):
+        ok = self.owner.can_drop(self.item)
+        Gtk.drag_finish(ctx, ok, False, time)
+        self.reset()
+        if ok:
+            self.owner.dropped(self.item)
+        return True
 
     def on_cross(self, _w, e, inside):
         if e.detail != Gdk.NotifyType.INFERIOR:
@@ -270,13 +389,13 @@ class Cell(Gtk.FlowBoxChild):
 
 class Grid(Gtk.ScrolledWindow):
     """Scrollable grid, the selection is managed by Launcher."""
-    def __init__(self, on_pick):
+    def __init__(self, on_pick, owner=None):
         super().__init__(hscrollbar_policy=Gtk.PolicyType.NEVER)
         self.flow = Gtk.FlowBox(homogeneous=True, halign=Gtk.Align.CENTER, valign=Gtk.Align.START,
                                 row_spacing=10, column_spacing=10, can_focus=False)
         self.flow.connect("child-activated", lambda _f, c: on_pick(c.item))
         self.add(self.flow)
-        self.cols = 1
+        self.cols, self.owner = 1, owner
 
     def fill(self, items, cols):
         for c in self.flow.get_children():
@@ -285,7 +404,7 @@ class Grid(Gtk.ScrolledWindow):
         self.flow.set_max_children_per_line(self.cols)
         self.flow.set_min_children_per_line(self.cols)
         for it in items:
-            self.flow.add(Cell(it))
+            self.flow.add(Cell(it, self.owner))
         self.flow.show_all()
         self.get_vadjustment().set_value(0)
 
@@ -335,7 +454,8 @@ class Launcher(Gtk.ApplicationWindow):
         self.search.set_size_request(460, -1)
         self.search.set_icon_from_icon_name(Gtk.EntryIconPosition.PRIMARY, "edit-find-symbolic")
         self.search.connect("changed", self.on_search)
-        self.main, self.found = Grid(self.pick), Grid(self.pick)
+        self.dragged, self.opened, self.dialog, self.show_hidden = None, None, None, False
+        self.main, self.found = Grid(self.pick, self), Grid(self.pick)
         self.empty = Gtk.Label(label="Nothing found", name="empty")
         self.stack = Gtk.Stack()
         for n, w in (("main", self.main), ("found", self.found), ("empty", self.empty)):
@@ -346,7 +466,7 @@ class Launcher(Gtk.ApplicationWindow):
         page.pack_start(self.stack, True, True, 0)
 
         self.title = Gtk.Label(name="title")
-        self.inside = Grid(self.pick)
+        self.inside = Grid(self.pick, self)
         self.inside.set_propagate_natural_height(True)
         self.inside.set_propagate_natural_width(True)
         col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, margin=26)
@@ -356,9 +476,19 @@ class Launcher(Gtk.ApplicationWindow):
         self.panel.add(col)
         self.dim = Gtk.EventBox(name="dim")
         self.dim.add(self.panel)
+        # dropping an app outside the open folder takes it out; the panel itself accepts nothing
+        for w, out in ((self.dim, True), (self.panel, False)):
+            w.drag_dest_set(0, TARGETS, Gdk.DragAction.MOVE)
+            w.connect("drag-motion", self.on_outside_motion, out)
+            w.connect("drag-drop", self.on_outside_drop, out)
 
+        self.eye = Gtk.Button(name="eye", relief=Gtk.ReliefStyle.NONE, can_focus=False, halign=Gtk.Align.END,
+                              valign=Gtk.Align.START, margin=56, tooltip_text="Show or hide the .hidden folder (Ctrl+H)")
+        self.eye.add(Gtk.Image())
+        self.eye.connect("clicked", lambda *_: self.set_show_hidden(not self.show_hidden))
         over = Gtk.Overlay()
         over.add(page)
+        over.add_overlay(self.eye)
         over.add_overlay(self.dim)
         self.add(over)
         over.show_all()
@@ -373,6 +503,8 @@ class Launcher(Gtk.ApplicationWindow):
         self.connect("focus-out-event", self.on_focus, False)
         self.connect("delete-event", lambda *_: self.close_all() or True)
         self.had_focus, self.width = False, 1920
+        _, keys = Gdk.Keymap.get_for_display(Gdk.Display.get_default()).get_entries_for_keyval(Gdk.KEY_h)
+        self.key_h = keys[0].keycode if keys else 0
         self.dirty, self.reload_id, self.regroup_id = True, 0, 0
         self.geo, self.menu = Gdk.Rectangle(), None
         self.reload()
@@ -389,12 +521,14 @@ class Launcher(Gtk.ApplicationWindow):
         """Rebuild the grid (dock or folders changed) without rereading icons."""
         self.regroup_id = 0
         self.pinned = pinned_files()
-        self.folders, self.rest = group(self.apps, self.pinned)
+        self.hidden = read_hidden()
+        self.folders, self.rest = group(self.apps, self.pinned, self.hidden)
+        self.hidden_folder = Folder(HIDDEN, [a for a in self.apps if a.id in self.hidden], HIDDEN)
         pos = self.main.get_vadjustment().get_value()
-        opened = self.title.get_text() if self.dim.get_visible() else None
+        opened = self.opened if self.dim.get_visible() else None
         self.refill()
         GLib.idle_add(lambda: self.main.get_vadjustment().set_value(pos) and False)
-        f = next((f for f in self.folders if f.name == opened), None)
+        f = next((f for f in [*self.folders, self.hidden_folder] if f.fid == opened and f.apps), None)
         if f:
             self.open_folder(f)
         return False
@@ -411,10 +545,18 @@ class Launcher(Gtk.ApplicationWindow):
         return max(1, min(MAX_COLS, (self.width - 120) // (CELL_W + 26)))
 
     def refill(self):
-        self.main.fill(self.folders + self.rest, self.columns())
+        self.main.fill(self.folders + self.rest + ([self.hidden_folder] if self.show_hidden else []), self.columns())
+        self.eye.get_child().set_from_icon_name("view-reveal-symbolic" if self.show_hidden else "view-conceal-symbolic",
+                                                Gtk.IconSize.LARGE_TOOLBAR)
         self.dirty = False
         self.close_folder()
         self.on_search()
+
+    def set_show_hidden(self, show):
+        self.show_hidden = show
+        self.refill()
+        if show:                                  # the tile is the last one: bring it into view
+            GLib.idle_add(lambda: self.main.get_vadjustment().set_value(1e6) and False)
 
     # ── showing ──
     def toggle(self):
@@ -427,8 +569,8 @@ class Launcher(Gtk.ApplicationWindow):
         mon = disp.get_monitor_at_point(x, y)
         n = next(i for i in range(disp.get_n_monitors()) if disp.get_monitor(i) == mon)
         g = mon.get_geometry()
-        if g.width != self.width or self.dirty:
-            self.width = g.width
+        if g.width != self.width or self.dirty or self.show_hidden:
+            self.width, self.show_hidden = g.width, False      # hidden apps are hidden again every time
             self.refill()
         self.geo = g
         self.search.set_text("")
@@ -445,18 +587,92 @@ class Launcher(Gtk.ApplicationWindow):
         self.hide()
 
     def open_folder(self, f):
+        self.opened = f.fid
         self.title.set_text(f.name)
-        self.inside.fill(f.apps, min(FOLDER_COLS, self.columns(), len(f.apps)))
+        self.inside.fill(f.apps, max(1, min(FOLDER_COLS, self.columns(), len(f.apps))))
         self.inside.set_max_content_height(int(self.geo.height * 0.65))
         self.dim.show()
 
     def close_folder(self):
         self.dim.hide()
 
+    # ── folders ──
+    def folder_of(self, app):
+        return next((f for f in self.folders if app in f.apps), None)
+
+    def can_drop(self, item):
+        if self.dragged is None or item is self.dragged or self.dim.get_visible():
+            return False
+        return isinstance(item, (App, Folder))
+
+    def dropped(self, item):
+        app = self.dragged
+        if item is self.hidden_folder:
+            self.change(set_hidden, app, True)
+        elif isinstance(item, Folder):
+            self.change(set_folder, app, item.fid)
+        else:
+            GLib.idle_add(self.create_folder, [item, app])      # after the drag has ended
+
+    def on_outside_motion(self, _w, ctx, _x, _y, time, out):
+        Gdk.drag_status(ctx, Gdk.DragAction.MOVE if out and self.dragged else 0, time)
+        return True
+
+    def on_outside_drop(self, _w, ctx, _x, _y, time, out):
+        app = self.dragged
+        Gtk.drag_finish(ctx, bool(out and app), False, time)
+        if out and app:
+            self.change(*((set_hidden, app, False) if self.opened == HIDDEN else (set_folder, app, None)))
+        return True
+
+    def drag_ended(self):
+        self.dragged = None
+
+    def change(self, what, *args):
+        """Edit the folders and show the result at once."""
+        try:
+            what(*args)
+        except (GLib.Error, OSError) as e:
+            n = Gio.Notification.new("The folder was not changed")
+            n.set_body(getattr(e, "message", None) or str(e))
+            self.get_application().send_notification(None, n)
+        self.regroup()
+
+    def ask_name(self, title, text=""):
+        self.dialog = Gtk.Dialog(title=title, transient_for=self, modal=True, resizable=False)
+        self.dialog.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "OK", Gtk.ResponseType.OK)
+        self.dialog.set_default_response(Gtk.ResponseType.OK)
+        entry = Gtk.Entry(text=text, activates_default=True, width_chars=28, margin=16)
+        self.dialog.get_content_area().add(entry)
+        self.dialog.show_all()
+        entry.grab_focus()
+        ok = self.dialog.run() == Gtk.ResponseType.OK
+        name = entry.get_text().strip()
+        self.dialog.destroy()
+        self.dialog = None
+        self.present_with_time(GdkX11.x11_get_server_time(self.get_window()))
+        return name if ok and name else None
+
+    def unhide_all(self):
+        for a in self.hidden_folder.apps:
+            set_hidden(a, False)
+        self.regroup()
+
+    def create_folder(self, apps):
+        name = self.ask_name("New folder", "New folder")
+        if name:
+            self.change(new_folder, name, apps)
+        return False
+
+    def rename(self, folder):
+        name = self.ask_name("Rename folder", folder.name)
+        if name and name != folder.name:
+            self.change(rename_folder, folder.fid, name)
+
     # ── actions ──
     def pick(self, item):
         if isinstance(item, Folder):
-            return self.open_folder(item)
+            return self.open_folder(item) if item.apps else None
         self.close_all()
         ctx = Gdk.Display.get_default().get_app_launch_context()
         ctx.set_timestamp(Gtk.get_current_event_time())
@@ -478,8 +694,11 @@ class Launcher(Gtk.ApplicationWindow):
             n = a.name.casefold()
             return (0 if n.startswith(q) else 1 if any(w.startswith(q) for w in n.split())
                     else 2 if q in n else 3, n)
-        hits = sorted((a for a in self.apps if all(p in a.words for p in parts)), key=rank)
+        hits = sorted((a for a in self.apps if (self.show_hidden or a.id not in self.hidden)
+                       and all(p in a.words for p in parts)), key=rank)
         hits = [f for f in self.folders if q in f.name.casefold()] + hits
+        if len(q) > 1 and HIDDEN.startswith(q) and self.hidden_folder.apps:
+            hits.insert(0, self.hidden_folder)
         self.found.fill(hits, self.columns())
         self.stack.set_visible_child_name("found" if hits else "empty")
         self.found.select(next((i for i, h in enumerate(hits) if isinstance(h, App)), 0))
@@ -498,6 +717,9 @@ class Launcher(Gtk.ApplicationWindow):
                 self.search.set_text("")
             else:
                 self.close_all()
+            return True
+        if e.state & Gdk.ModifierType.CONTROL_MASK and e.hardware_keycode == self.key_h:      # in any layout
+            self.set_show_hidden(not self.show_hidden)
             return True
         arrows = {Gdk.KEY_Left: (-1, 0), Gdk.KEY_Right: (1, 0), Gdk.KEY_Up: (0, -1), Gdk.KEY_Down: (0, 1)}
         if k in arrows:
@@ -526,17 +748,46 @@ class Launcher(Gtk.ApplicationWindow):
         return w
 
     def popup(self, cell, e):
-        app = cell.item
-        pinned = app.path in self.pinned
         self.menu = Gtk.Menu()
-        it = Gtk.MenuItem(label="Unpin from dock" if pinned else "Pin to dock")
-        it.connect("activate", self.on_pin, "Remove" if pinned else "Add", app)
-        self.menu.append(it)
+
+        def add(menu, label, action=None, *args):
+            it = Gtk.MenuItem(label=label)
+            if action:
+                it.connect("activate", lambda *_: action(*args))
+            menu.append(it)
+            return it
+        if cell.item is self.hidden_folder:
+            if not cell.item.apps:
+                return
+            add(self.menu, "Show all apps again", self.unhide_all)
+        elif isinstance(cell.item, Folder):
+            add(self.menu, "Rename…", self.rename, cell.item)
+            add(self.menu, "Remove folder", self.change, drop_folder, cell.item.fid)
+        else:
+            app, here = cell.item, self.folder_of(cell.item)
+            pinned = app.path in self.pinned
+            add(self.menu, "Unpin from dock" if pinned else "Pin to dock", self.on_pin, "Remove" if pinned else "Add", app)
+            self.menu.append(Gtk.SeparatorMenuItem())
+            sub = Gtk.Menu()
+            for f in self.folders:
+                if f is not here:
+                    add(sub, f.name, self.change, set_folder, app, f.fid)
+            if sub.get_children():
+                sub.append(Gtk.SeparatorMenuItem())
+            add(sub, "New folder…", self.create_folder, [app])
+            add(self.menu, "Move to folder").set_submenu(sub)
+            if here:
+                add(self.menu, "Remove from folder", self.change, set_folder, app, None)
+            self.menu.append(Gtk.SeparatorMenuItem())
+            if app.id in self.hidden:
+                add(self.menu, "Unhide", self.change, set_hidden, app, False)
+            else:
+                add(self.menu, "Hide", self.change, set_hidden, app, True)
         self.menu.attach_to_widget(self, None)
         self.menu.show_all()
         self.menu.popup_at_pointer(e)
 
-    def on_pin(self, _i, method, app):
+    def on_pin(self, method, app):
         try:
             plank(method, app.info)      # the Plank directory monitor updates the grid
         except GLib.Error as e:
@@ -558,7 +809,7 @@ class Launcher(Gtk.ApplicationWindow):
                         return None
                 return None if g is self.inside else "page"
         while w:
-            if isinstance(w, (Gtk.FlowBoxChild, Gtk.Entry, Gtk.Scrollbar)) or w is self.panel:
+            if isinstance(w, (Gtk.FlowBoxChild, Gtk.Entry, Gtk.Scrollbar, Gtk.Button)) or w is self.panel:
                 return None
             if w is self.dim:
                 return "dim"
@@ -569,7 +820,7 @@ class Launcher(Gtk.ApplicationWindow):
         cell = self.cell_at(e)
         if e.button == 3:
             self.blank = None
-            if cell and isinstance(cell.item, App):
+            if cell:
                 self.popup(cell, e)
                 return True
             return False
@@ -587,7 +838,8 @@ class Launcher(Gtk.ApplicationWindow):
     def on_focus(self, _w, _e, inside):
         if inside:
             self.had_focus = True
-        elif self.had_focus and self.get_visible() and not (self.menu and self.menu.get_visible()):
+        elif (self.had_focus and self.get_visible() and not self.dialog and self.dragged is None
+              and not (self.menu and self.menu.get_visible())):
             self.close_all()
         return False
 
@@ -707,13 +959,16 @@ class Program(Gtk.Application):
         self.dock.connect("changed", self.win.schedule_regroup)
         self.sets = []
         if Gio.SettingsSchemaSource.get_default().lookup(FOLDERS, True):
-            s = Gio.Settings.new(FOLDERS)
-            s.connect("changed", self.win.schedule_reload)
-            self.sets.append(s)
-            for fid in s.get_strv("folder-children"):
-                f = Gio.Settings.new_with_path(FOLDERS + ".folder", FOLDER_PATH % fid)
-                f.connect("changed", self.win.schedule_reload)
-                self.sets.append(f)
+            self.folder_list = Gio.Settings.new(FOLDERS)
+            self.folder_list.connect("changed", self.watch_folders)
+            self.watch_folders()
+
+    def watch_folders(self, *_):
+        """Follow every folder, including ones that were just created."""
+        self.sets = [folder_settings(fid) for fid in self.folder_list.get_strv("folder-children")]
+        for f in self.sets:
+            f.connect("changed", self.win.schedule_regroup)
+        self.win.schedule_regroup()
 
     def load_user_css(self):
         """Reload the theme variant if install.sh changed it."""

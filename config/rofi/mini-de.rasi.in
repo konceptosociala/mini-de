@@ -2,7 +2,7 @@
 * {
     bg: @BG@; surface: @SURFACE@; border-c: @BORDER@; fg: @FG@; dim: @DIM@; hilite: @HILITE@; hilite-fg: @HILITE_FG@;
     accent: @ACCENT@; on-accent: @ON_ACCENT@; red: @RED@;
-    font: "Ubuntu Sans 13"; background-color: transparent; text-color: @fg;
+    font: "Inter 13"; background-color: transparent; text-color: @fg;
 }
 window { background-color: @bg; border: 1px; border-color: @border-c; border-radius: 10px; padding: 10px; width: 640px; }
 mainbox { spacing: 8px; }

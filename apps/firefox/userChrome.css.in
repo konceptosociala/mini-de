@@ -1,0 +1,11 @@
+/* mini-de, variant @VARIANT@: browser window. The rest comes from the GTK theme ("System theme" in Firefox). */
+:root {
+  --toolbox-background-color: @BG@ !important;
+  --toolbar-background-color: @BG@ !important;
+  --toolbar-field-background-color: @SURFACE@ !important;
+  --urlbar-background-color: @SURFACE@ !important;
+  --tab-background-color-selected: @RAISED@ !important;
+  --sidebar-background-color: @BG@ !important;
+  --color-accent-primary: @ACCENT@ !important;
+}
+#navigator-toolbox { border-bottom-color: @SURFACE@ !important; }

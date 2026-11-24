@@ -7,7 +7,15 @@ LAYOUTS=us
 VARIANTS=
 # Mice without acceleration: regular expression matching names from `xinput list`
 FLAT_MOUSE=
+# Titlebar font: 11 to 14, bold or normal
+TITLE_FONT_SIZE=11
+TITLE_FONT_WEIGHT=bold
+# Icon theme; by default it depends on the variant
+#ICON_THEME=Qogir-Dark
 WALLPAPER=/usr/share/backgrounds/warty-final-ubuntu.png
+
+# Scale of programs that follow the screen density: 96 = 100%, 120 = 125%
+#DPI=96
 
 # Usually detected automatically; uncomment if detection gets it wrong
 #MONITORS_CMD='xrandr --output eDP-1 --primary --auto --output HDMI-1 --auto --above eDP-1'

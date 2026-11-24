@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=mini-de settings
+Comment=Wallpaper and other settings of mini-de
+Exec=@CONF@/openbox/settings.py
+Icon=preferences-desktop
+Categories=Settings;GTK;
+Keywords=wallpaper;background;settings;
+StartupWMClass=mini-de-settings

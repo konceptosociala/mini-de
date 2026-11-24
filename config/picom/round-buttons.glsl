@@ -44,7 +44,7 @@ bool is_button(int cx, int cy, out vec3 c, out vec3 bg) {
 vec4 smooth_button(vec2 p, vec4 orig) {
     if (p.y > float(TOP + 12) || p.x < float(size.x) - 100.0 || size.x < 110 || size.y < 40) return orig;
     for (int i = 0; i < 3; i++) {
-        for (int off = 19; off <= 20; off++) {     // maximized / normal window
+        for (int off = 19; off <= 22; off++) {     // depends on the font size and on maximized / normal
             int cx = size.x - off - i * STEP;
             vec2 d = p - vec2(float(cx), float(TOP));
             if (abs(d.x) > 10.0 || abs(d.y) > 10.0) continue;

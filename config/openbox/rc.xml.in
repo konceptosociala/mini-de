@@ -64,25 +64,25 @@
   <keepBorder>yes</keepBorder>
   <animateIconify>yes</animateIconify>
   <font place="ActiveWindow">
-    <name>Ubuntu Sans</name>
-    <size>14</size>
+    <name>Inter</name>
+    <size>@TITLE_SIZE@</size>
     <!-- font size in points -->
-    <weight>bold</weight>
+    <weight>@TITLE_WEIGHT@</weight>
     <!-- 'bold' or 'normal' -->
     <slant>normal</slant>
     <!-- 'italic' or 'normal' -->
   </font>
   <font place="InactiveWindow">
-    <name>Ubuntu Sans</name>
-    <size>14</size>
+    <name>Inter</name>
+    <size>@TITLE_SIZE@</size>
     <!-- font size in points -->
-    <weight>bold</weight>
+    <weight>@TITLE_WEIGHT@</weight>
     <!-- 'bold' or 'normal' -->
     <slant>normal</slant>
     <!-- 'italic' or 'normal' -->
   </font>
   <font place="MenuHeader">
-    <name>Ubuntu Sans</name>
+    <name>Inter</name>
     <size>12</size>
     <!-- font size in points -->
     <weight>normal</weight>
@@ -91,7 +91,7 @@
     <!-- 'italic' or 'normal' -->
   </font>
   <font place="MenuItem">
-    <name>Ubuntu Sans</name>
+    <name>Inter</name>
     <size>12</size>
     <!-- font size in points -->
     <weight>normal</weight>
@@ -251,24 +251,6 @@
   </keybind>
 
   <!-- Keybindings for window switching -->
-  <keybind key="A-Tab">
-    <action name="NextWindow">
-      <finalactions>
-        <action name="Focus"/>
-        <action name="Raise"/>
-        <action name="Unshade"/>
-      </finalactions>
-    </action>
-  </keybind>
-  <keybind key="A-S-Tab">
-    <action name="PreviousWindow">
-      <finalactions>
-        <action name="Focus"/>
-        <action name="Raise"/>
-        <action name="Unshade"/>
-      </finalactions>
-    </action>
-  </keybind>
   <keybind key="C-A-Tab">
     <action name="NextWindow">
       <panels>yes</panels><desktop>yes</desktop>
@@ -317,8 +299,8 @@
   <keybind key="XF86AudioLowerVolume"><action name="Execute"><command>pactl set-sink-volume @DEFAULT_SINK@ -5%</command></action></keybind>
   <keybind key="XF86AudioMute"><action name="Execute"><command>pactl set-sink-mute @DEFAULT_SINK@ toggle</command></action></keybind>
   <keybind key="XF86AudioMicMute"><action name="Execute"><command>pactl set-source-mute @DEFAULT_SOURCE@ toggle</command></action></keybind>
-  <keybind key="XF86MonBrightnessUp"><action name="Execute"><command>brightnessctl set +5%</command></action></keybind>
-  <keybind key="XF86MonBrightnessDown"><action name="Execute"><command>brightnessctl set 5%-</command></action></keybind>
+  <keybind key="XF86MonBrightnessUp"><action name="Execute"><command>sh -c "~/.config/openbox/brightness.sh up"</command></action></keybind>
+  <keybind key="XF86MonBrightnessDown"><action name="Execute"><command>sh -c "~/.config/openbox/brightness.sh down"</command></action></keybind>
   <keybind key="XF86AudioPlay"><action name="Execute"><command>playerctl play-pause</command></action></keybind>
   <keybind key="XF86AudioNext"><action name="Execute"><command>playerctl next</command></action></keybind>
   <keybind key="XF86AudioPrev"><action name="Execute"><command>playerctl previous</command></action></keybind>

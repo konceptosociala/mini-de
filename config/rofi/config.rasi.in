@@ -1,5 +1,6 @@
 configuration {
     show-icons: true;
+    icon-theme: "@ICON_THEME@";
     /* single click launches, the selection follows the mouse */
     hover-select: true;
     me-select-entry: "";

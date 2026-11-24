@@ -1,0 +1,59 @@
+# mini-de prompt for bash, variant @VARIANT@: user, folder, git branch and the exit code as colored arrows.
+# Sourced from ~/.bashrc (install.sh --prompt). Needs a font with Powerline symbols, so the text console keeps its own.
+case $- in *i*) ;; *) return ;; esac
+case $TERM in linux | dumb | '') return ;; esac
+
+__md_rgb() { printf -v "$1" '%d;%d;%d' "0x${2:1:2}" "0x${2:3:2}" "0x${2:5:2}"; }
+__md_rgb __md_dark '@SURFACE@'
+__md_rgb __md_c_user '@BLUE@'
+__md_rgb __md_c_dir '@GREEN@'
+__md_rgb __md_c_git '@YELLOW@'
+__md_rgb __md_c_env '@PURPLE@'
+__md_rgb __md_c_err '@RED@'
+unset -f __md_rgb
+__md_arrow=$'' __md_i_user=$'' __md_i_dir=$'' __md_i_git=$'' __md_i_env=$'' __md_i_err=$''
+VIRTUAL_ENV_DISABLE_PROMPT=1
+PROMPT_DIRTRIM=4
+
+# The branch of the repository around $PWD; git itself only runs inside one
+__md_git_info() {
+    local d=$PWD
+    __md_branch=
+    while [ ! -e "$d/.git" ]; do
+        [ -n "$d" ] || return
+        d=${d%/*}
+    done
+    __md_branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null) || return
+    # a slow repository must not slow the prompt down
+    timeout 0.3 git diff --quiet --ignore-submodules HEAD -- 2>/dev/null
+    [ $? = 1 ] && __md_branch+=' ●'
+}
+
+# __md_segment COLOR TEXT: TEXT must be safe for PS1 (names are passed as variable references)
+__md_segment() {
+    [ -z "$__md_prev" ] || __md_ps+="\[\e[38;2;${__md_prev};48;2;${1}m\]$__md_arrow"
+    __md_ps+="\[\e[0;48;2;${1};38;2;${__md_dark}m\] $2 "
+    __md_prev=$1
+}
+
+__md_prompt() {
+    __md_status=$?
+    __md_ps= __md_prev=
+    __md_venv=${VIRTUAL_ENV:-${CONDA_DEFAULT_ENV:-}}
+    __md_venv=${__md_venv##*/}
+    __md_git_info
+    if [ -n "${SSH_CONNECTION:-}" ]; then __md_segment "$__md_c_user" "$__md_i_user \u@\h"; else __md_segment "$__md_c_user" "$__md_i_user \u"; fi
+    [ -z "$__md_venv" ] || __md_segment "$__md_c_env" "$__md_i_env "'${__md_venv}'
+    __md_segment "$__md_c_dir" "$__md_i_dir \w"
+    [ -z "$__md_branch" ] || __md_segment "$__md_c_git" "$__md_i_git "'${__md_branch}'
+    [ $__md_status = 0 ] || __md_segment "$__md_c_err" "$__md_i_err $__md_status"
+    # window title, the segments, the last arrow
+    PS1="\[\e]0;\u@\h: \w\a\]$__md_ps\[\e[0;38;2;${__md_prev}m\]$__md_arrow\[\e[0m\] "
+    return $__md_status
+}
+
+# once, and before everything else that is already there, so that the exit code is still the command's
+case ";${PROMPT_COMMAND[*]:-};" in
+    *__md_prompt*) ;;
+    *) PROMPT_COMMAND="__md_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
+esac

@@ -114,7 +114,7 @@ css.load_from_data(b"""
 @define-color md_accent #fabd2f;
 @define-color md_on_accent #1d2021;
 #kbosd { background: @md_surface; border: 2px solid @md_border; }
-#kbosd label { color: @md_fg; font: 600 22px "Ubuntu Sans"; padding: 14px 22px; margin: 8px; }
+#kbosd label { color: @md_fg; font: 600 22px "Inter"; padding: 14px 22px; margin: 8px; }
 #kbosd label.sel { color: @md_on_accent; background: @md_accent; border-radius: 8px; }
 """)
 Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, 800)

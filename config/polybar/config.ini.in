@@ -1,9 +1,16 @@
+; mini-de panel. Icons come from Symbols Nerd Font, colors from the variant.
 [colors]
 bg = #e6@SURFACE_HEX@
 bg-alt = @RAISED@
 fg = @FG@
 dim = @DIM@
 accent = @ACCENT_TEXT@
+blue = @BLUE@
+green = @GREEN@
+yellow = @YELLOW@
+purple = @PURPLE@
+teal = @TEAL@
+orange = @ORANGE@
 red = @RED@
 hot = @CLOSE@
 cool = @GREEN@
@@ -15,10 +22,12 @@ height = 40
 background = ${colors.bg}
 foreground = ${colors.fg}
 padding = 2
-module-margin = 2
-font-0 = "Ubuntu Sans:size=14;4"
-font-1 = "FontAwesome:size=15;4"
-modules-left = title
+module-margin = 0
+font-0 = "Inter:style=Medium:size=13;3"
+font-1 = "Symbols Nerd Font:size=15;3"
+font-2 = "Inter:style=SemiBold:size=13;3"
+font-3 = "DejaVu Sans Mono:size=10;2"
+modules-left = cpu memory sep backlight pulse
 modules-center = date
 enable-ipc = true
 wm-restack = generic
@@ -26,109 +35,168 @@ cursor-click = pointer
 
 [bar/main]
 inherit = bar/base
-modules-right = cpu memory pulse backlight keyboard wlan profile battery tray power
+modules-right = tray sep keyboard wlan sep profile battery sep power
 
 [bar/side]
 inherit = bar/base
-modules-right = pulse keyboard battery
+modules-right = keyboard battery
 
-[module/workspaces]
-type = internal/xworkspaces
-label-active = %index%
-label-active-background = ${colors.bg-alt}
-label-active-foreground = ${colors.accent}
-label-active-padding = 2
-label-occupied = %index%
-label-occupied-padding = 2
-label-urgent = %index%
-label-urgent-foreground = ${colors.red}
-label-urgent-padding = 2
-label-empty = %index%
-label-empty-foreground = ${colors.dim}
-label-empty-padding = 2
+[module/sep]
+type = custom/text
+format = │
+format-foreground = @BORDER@
+format-padding = 1
 
-[module/title]
-type = internal/xwindow
-label = %title:0:60:...%
-label-foreground = ${colors.dim}
-
-[module/date]
-type = internal/date
-interval = 1
-date = %a %d %b
-time = %H:%M
-label = %date%  %time%
-
+; ── left ──
 [module/cpu]
 type = internal/cpu
-interval = 2
-label = CPU %percentage%%
+interval = 1.5
+format = <label> <ramp-coreload>
+format-prefix = " "
+format-prefix-font = 2
+format-prefix-foreground = ${colors.blue}
+format-padding = 1
+label = %percentage%%
+ramp-coreload-spacing = 0
+ramp-coreload-font = 4
+ramp-coreload-0 = ▁
+ramp-coreload-1 = ▂
+ramp-coreload-2 = ▃
+ramp-coreload-3 = ▄
+ramp-coreload-4 = ▅
+ramp-coreload-5 = ▆
+ramp-coreload-6 = ▇
+ramp-coreload-7 = █
+ramp-coreload-0-foreground = ${colors.blue}
+ramp-coreload-1-foreground = ${colors.blue}
+ramp-coreload-2-foreground = ${colors.teal}
+ramp-coreload-3-foreground = ${colors.teal}
+ramp-coreload-4-foreground = ${colors.yellow}
+ramp-coreload-5-foreground = ${colors.yellow}
+ramp-coreload-6-foreground = ${colors.orange}
+ramp-coreload-7-foreground = ${colors.red}
 
 [module/memory]
 type = internal/memory
 interval = 3
-label = RAM %percentage_used%%
-
-[module/pulse]
-type = internal/pulseaudio
-format-volume = <ramp-volume> <label-volume>
-label-volume = %percentage%%
-label-muted =  muted
-label-muted-foreground = ${colors.dim}
-ramp-volume-0 = 
-ramp-volume-1 = 
-ramp-volume-2 = 
-click-right = gnome-control-center sound
+format-prefix = " "
+format-prefix-font = 2
+format-prefix-foreground = ${colors.purple}
+format-padding = 1
+label = %percentage_used%%
 
 [module/backlight]
 type = internal/backlight
 card = ${env:BACKLIGHT:intel_backlight}
 use-actual-brightness = true
 enable-scroll = false
-label =  %percentage%%
+; scrolling goes through logind: polybar itself may not write to sysfs
+format = %{A4:~/.config/openbox/brightness.sh up:}%{A5:~/.config/openbox/brightness.sh down:}<ramp> <label>%{A}%{A}
+format-padding = 1
+label = %percentage%%
+ramp-0 = 󰃞
+ramp-1 = 󰃟
+ramp-2 = 󰃠
+ramp-font = 2
+ramp-foreground = ${colors.yellow}
+
+[module/pulse]
+type = internal/pulseaudio
+format-volume = <ramp-volume> <label-volume>
+format-volume-padding = 1
+label-volume = %percentage%%
+format-muted = <label-muted>
+format-muted-prefix = "󰖁 "
+format-muted-prefix-font = 2
+format-muted-foreground = ${colors.dim}
+format-muted-padding = 1
+label-muted = %percentage%%
+ramp-volume-0 = 󰕿
+ramp-volume-1 = 󰖀
+ramp-volume-2 = 󰕾
+ramp-volume-font = 2
+ramp-volume-foreground = ${colors.teal}
+click-right = gnome-control-center sound
+
+; ── center ──
+[module/date]
+type = internal/date
+interval = 1
+date = %a %d %b
+time = %H:%M
+date-alt = %A, %d %B %Y
+time-alt = %H:%M:%S
+format = <label>
+format-padding = 1
+label = "%{T2}%{F@BLUE@}󰃭%{F-}%{T-} %date%   %{T2}%{F@TEAL@}󰥔%{F-}%{T-} %{T3}%time%%{T-}"
+
+; ── right ──
+[module/tray]
+type = internal/tray
+format-padding = 1
+tray-spacing = 6px
+tray-size = 46%
 
 [module/keyboard]
 type = internal/xkeyboard
 blacklist-0 = num lock
 blacklist-1 = scroll lock
-label-layout =  %layout%
+blacklist-2 = caps lock
+format = <label-layout>
+format-prefix = "󰌌 "
+format-prefix-font = 2
+format-prefix-foreground = ${colors.orange}
+format-padding = 1
+label-layout = %layout%
 
 [module/wlan]
 type = internal/network
 interface-type = wireless
 interval = 5
-label-connected =  %essid%
-label-disconnected =  off
-label-disconnected-foreground = ${colors.dim}
+format-connected = %{A1:~/.config/openbox/wifi-menu.py &:}<ramp-signal> <label-connected>%{A}
+format-connected-padding = 1
+format-disconnected = %{A1:~/.config/openbox/wifi-menu.py &:}<label-disconnected>%{A}
+format-disconnected-prefix = "󰤭 "
+format-disconnected-prefix-font = 2
+format-disconnected-foreground = ${colors.dim}
+format-disconnected-padding = 1
+label-connected = %essid:0:18:…%
+label-disconnected = off
+ramp-signal-0 = 󰤟
+ramp-signal-1 = 󰤢
+ramp-signal-2 = 󰤥
+ramp-signal-3 = 󰤨
+ramp-signal-font = 2
+ramp-signal-foreground = ${colors.blue}
 
 [module/profile]
 type = custom/script
 exec-if = busctl --system get-property net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles ActiveProfile
 exec = ~/.config/openbox/power-profile.sh watch
 tail = true
+format-font = 2
+format-padding = 1
 env-HOT = ${colors.hot}
 env-COOL = ${colors.cool}
 click-left = ~/.config/openbox/power-profile.sh next &
 click-right = ~/.config/openbox/power-profile.sh menu &
 
 [module/battery]
-type = internal/battery
-battery = ${env:BATTERY:BAT0}
-adapter = ${env:ADAPTER:AC}
-full-at = 98
-low-at = 15
-label-charging =  %percentage%%
-label-discharging =  %percentage%%
-label-full =  %percentage%%
-label-low =  %percentage%%
-label-low-foreground = ${colors.red}
-
-[module/tray]
-type = internal/tray
-tray-spacing = 6px
+type = custom/script
+exec-if = [ -r /sys/class/power_supply/${BATTERY:-BAT0}/capacity ]
+exec = ~/.config/openbox/battery.sh
+tail = true
+format-padding = 1
+env-NORMAL = ${colors.green}
+env-WARN = ${colors.yellow}
+env-LOW = ${colors.orange}
+env-CRIT = ${colors.red}
+env-ON_CRIT = @SURFACE@
 
 [module/power]
 type = custom/text
-format = 
+format = 󰐥
+format-font = 2
 format-foreground = ${colors.red}
+format-padding = 1
 click-left = ~/.config/openbox/powermenu.sh

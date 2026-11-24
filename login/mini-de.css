@@ -1,0 +1,14 @@
+/* Login screen, added on top of the GTK theme by login/install.sh. Colors: IntelliJ New UI Dark. */
+* { font-family: Inter; }
+#panel_window { background-color: rgba(30, 31, 34, 0.80); color: #dfe1e5; border: none; box-shadow: none; font-weight: 500; padding: 4px 10px; }
+#panel_window menubar, #panel_window menubar > menuitem { background-color: transparent; color: #dfe1e5; border: none; box-shadow: none; }
+#panel_window menubar > menuitem:hover { background-color: rgba(223, 225, 229, 0.12); border-radius: 6px; }
+#login_window, #shutdown_dialog, #restart_dialog { background-color: rgba(43, 45, 48, 0.94); color: #dfe1e5; border: 1px solid #4f5156; border-radius: 16px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); }
+#content_frame { padding: 30px 34px 18px 34px; border: none; background-color: transparent; }
+#buttonbox_frame { padding: 0 34px 26px 34px; border: none; background-color: transparent; }
+#login_window #user_combobox button, #login_window entry { background-image: none; background-color: #1e1f22; color: #dfe1e5; border: 1px solid #4f5156; border-radius: 8px; min-height: 38px; padding: 0 12px; box-shadow: none; }
+#login_window entry:focus { border-color: #3574f0; }
+#login_button { background-image: none; background-color: #3574f0; color: #ffffff; border: none; border-radius: 8px; min-height: 36px; padding: 0 22px; box-shadow: none; }
+#login_button:hover { background-color: #467ff2; }
+#cancel_button { background-image: none; background-color: #393b40; color: #dfe1e5; border: none; border-radius: 8px; min-height: 36px; padding: 0 22px; box-shadow: none; }
+#message_label { color: #db5c5c; }

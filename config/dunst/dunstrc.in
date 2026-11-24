@@ -11,13 +11,13 @@
     frame_width = 1
     gap_size = 6
     corner_radius = 10
-    font = Ubuntu Sans 12
+    font = Inter 12
     markup = full
     format = "<b>%s</b>\n%b"
     icon_position = left
     max_icon_size = 48
     enable_recursive_icon_lookup = true
-    icon_theme = "Qogir-Ubuntu-Dark, Yaru, hicolor"
+    icon_theme = "@ICON_THEME@, Yaru, hicolor"
     highlight = "@ACCENT@"
 
 [urgency_low]

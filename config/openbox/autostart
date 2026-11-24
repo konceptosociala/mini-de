@@ -2,15 +2,25 @@
 # Runs when the Openbox session starts
 
 # Defaults; set your own in ~/.config/mini-de/local.conf
-LAYOUTS=us; VARIANTS=; FLAT_MOUSE=; LOCK_COLOR=1d2021
+LAYOUTS=us; VARIANTS=; FLAT_MOUSE=; LOCK_COLOR=1d2021; DPI=96
 WALLPAPER=/usr/share/backgrounds/warty-final-ubuntu.png
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
 [ -r "$CONF/mini-de/colors.sh" ] && . "$CONF/mini-de/colors.sh"
 [ -r "$CONF/mini-de/local.conf" ] && . "$CONF/mini-de/local.conf"
 
-dbus-update-activation-environment --systemd DISPLAY XAUTHORITY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP
+dbus-update-activation-environment --systemd DISPLAY XAUTHORITY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP \
+    GTK_IM_MODULE QT_IM_MODULE XMODIFIERS
+pkill -x ibus-daemon      # in case something started it anyway; see environment
+
+# Leftovers of a session whose X server went away (e.g. a gdm restart): systemd refuses to start bamf
+# again, and the old portal hangs for 25 s. Plank needs both at startup.
+timeout 3 systemctl --user reset-failed bamfdaemon.service xdg-desktop-portal.service xdg-desktop-portal-gtk.service 2>/dev/null
+timeout 3 systemctl --user try-restart xdg-desktop-portal.service 2>/dev/null
 
 "$CONF/openbox/monitors.sh"
+
+# Like GNOME does: without it some programs (Alacritty, winit, Bevy) scale by the physical size of the screen
+echo "Xft.dpi: $DPI" | xrdb -merge
 
 # Keyboard; Super+Space is handled by kb-switch.py
 setxkbmap -layout "$LAYOUTS" -variant "$VARIANTS" -option ''
@@ -40,5 +50,9 @@ xss-lock -- i3lock -n -c "${LOCK_COLOR#\#}" &             # lock on suspend
 xset s 600 dpms 600 600 900
 
 "$CONF/polybar/launch.sh" &
+"$CONF/openbox/keep-visible.py" &           # windows cannot get stuck under the panel
+"$CONF/openbox/resize-edges.py" &           # wide invisible borders for resizing windows
+# Alt+Tab; started again after a crash, as Openbox itself no longer handles the keys
+(n=0; until "$CONF/openbox/alt-tab.py" || [ $((n += 1)) -ge 5 ]; do sleep 1; done) &
 "$CONF/openbox/launcher.py" --gapplication-service &   # launcher, opens on Super
 (sleep 1; plank) &

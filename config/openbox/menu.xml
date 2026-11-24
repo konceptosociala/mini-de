@@ -7,6 +7,7 @@
   <separator/>
   <menu id="client-list-menu"/>
   <separator/>
+  <item label="Settings"><action name="Execute"><command>sh -c "~/.config/openbox/settings.py"</command></action></item>
   <item label="Reload config"><action name="Reconfigure"/></item>
   <item label="Restart panel"><action name="Execute"><command>sh -c "~/.config/polybar/launch.sh"</command></action></item>
   <item label="Power…"><action name="Execute"><command>sh -c "~/.config/openbox/powermenu.sh"</command></action></item>

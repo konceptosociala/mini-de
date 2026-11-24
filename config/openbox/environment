@@ -3,3 +3,16 @@ export XDG_CURRENT_DESKTOP=OPENBOX
 export XDG_SESSION_DESKTOP=openbox
 export XCURSOR_THEME=Yaru
 export XCURSOR_SIZE=24
+
+# No IBus here: it resets the keyboard layouts and takes Super+Space away from kb-switch.py.
+# install.sh also tells im-config not to start it (~/.xinputrc).
+export GTK_IM_MODULE=gtk-im-context-simple
+export QT_IM_MODULE=compose
+export XMODIFIERS=@im=none
+unset CLUTTER_IM_MODULE SDL_IM_MODULE
+
+# Qt: fonts, icons and file dialogs like GTK, widgets from the Kvantum theme that install.sh builds
+if [ -e "${XDG_CONFIG_HOME:-$HOME/.config}/Kvantum/mini-de/mini-de.kvconfig" ]; then
+    export QT_QPA_PLATFORMTHEME=gtk3
+    export QT_STYLE_OVERRIDE=kvantum
+fi

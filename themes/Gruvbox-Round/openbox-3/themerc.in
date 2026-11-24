@@ -1,8 +1,8 @@
 !! Template: install.sh --variant fills in the @...@ colors
 !! Gruvbox-Round: round buttons. Without the picom shader they are just pixelated.
 border.width: 1
-padding.width: 8
-padding.height: 6
+padding.width: @TITLE_PADX@
+padding.height: @TITLE_PADY@
 window.handle.width: 0
 window.client.padding.width: 0
 window.client.padding.height: 0
