@@ -3,6 +3,25 @@
 A small desktop for Ubuntu 24.04 on X11: Openbox, polybar, Plank and picom, tied together with a few
 Vala programs and shell scripts. It installs next to GNOME as a separate session and leaves GNOME in place.
 
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/fb263a0f-7f79-404e-b09a-893e4ab7a9b7" />
+
+## Resources
+
+| Part of DE                         | MiB  |
+|------------------------------------|------|
+| Openbox                            | 28,7 |
+| picom                              | 25,1 |
+| Plank                              | 16,9 |
+| bamfdaemon                         | 10,1 |
+| mini-de-shell                      | 20   |
+| nm-applet                          | 13,0 |
+| polybar                            | 8,9  |
+| dunst                              | 7,4  |
+| panel scripts and sounds           | 5,7  |
+| lxpolkit, xsettingsd, xss-lock     | 3,3  |
+| mini-de-wm                         | 0,6  |
+| **OVERALL**                        | **~140** |
+
 ## What is in it
 
 - **Window frames** with smooth round buttons. Openbox only draws 1-bit button images, so a picom shader
