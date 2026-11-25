@@ -118,7 +118,7 @@ ramp-volume-1 = 󰖀
 ramp-volume-2 = 󰕾
 ramp-volume-font = 2
 ramp-volume-foreground = ${colors.teal}
-click-right = ~/.config/openbox/settings.py sound &
+click-right = ~/.local/bin/mini-de-settings sound &
 
 [module/mic]
 type = custom/script
@@ -128,7 +128,7 @@ format-padding = 1
 env-NORMAL = ${colors.purple}
 env-DIM = ${colors.dim}
 click-left = pactl set-source-mute @DEFAULT_SOURCE@ toggle
-click-right = ~/.config/openbox/settings.py sound &
+click-right = ~/.local/bin/mini-de-settings sound &
 scroll-up = ~/.config/openbox/volume.sh up 5 source
 scroll-down = ~/.config/openbox/volume.sh down 5 source
 
@@ -167,9 +167,9 @@ label-layout = %layout%
 type = internal/network
 interface-type = wireless
 interval = 5
-format-connected = %{A1:~/.config/openbox/wifi-menu.py &:}<ramp-signal>%{A}
+format-connected = %{A1:~/.local/bin/mini-de-menu wifi &:}<ramp-signal>%{A}
 format-connected-padding = 1
-format-disconnected = %{A1:~/.config/openbox/wifi-menu.py &:}<label-disconnected>%{A}
+format-disconnected = %{A1:~/.local/bin/mini-de-menu wifi &:}<label-disconnected>%{A}
 format-disconnected-foreground = ${colors.dim}
 format-disconnected-padding = 1
 label-disconnected = 󰤭
@@ -190,7 +190,7 @@ format-padding = 1
 env-NORMAL = ${colors.blue}
 env-ACTIVE = ${colors.teal}
 env-DIM = ${colors.dim}
-click-left = ~/.config/openbox/bluetooth-menu.py &
+click-left = ~/.local/bin/mini-de-menu bluetooth &
 
 [module/profile]
 type = custom/script

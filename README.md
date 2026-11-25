@@ -1,7 +1,7 @@
 # mini-de
 
 A small desktop for Ubuntu 24.04 on X11: Openbox, polybar, Plank and picom, tied together with a few
-Python and shell scripts. It installs next to GNOME as a separate session and leaves GNOME in place.
+Vala programs and shell scripts. It installs next to GNOME as a separate session and leaves GNOME in place.
 
 ## What is in it
 
@@ -93,11 +93,12 @@ templates: `@NAME@` is replaced with a color of the chosen variant. A new palett
 
 | Directory | |
 |---|---|
-| `bin/` | launcher, layout switcher, settings, window helpers, panel scripts |
+| `src/`, `vapi/` | launcher, switchers, settings, menus and window helpers in Vala, built with Meson by the installer |
+| `bin/` | panel scripts |
 | `config/` | Openbox, polybar, picom, rofi, dunst, Plank, Alacritty and others |
 | `themes/` | Openbox theme and the recolored GTK theme |
 | `variants/` | color palettes |
-| `apps/`, `login/` | Qt, Firefox and Telegram themes, LightDM |
+| `apps/`, `login/` | Firefox theme, LightDM |
 | `fonts/`, `wallpapers/`, `sounds/` | bundled fonts, pictures and sounds |
 
 ## License

@@ -4,7 +4,7 @@ export XDG_SESSION_DESKTOP=openbox
 export XCURSOR_THEME=Yaru
 export XCURSOR_SIZE=24
 
-# No IBus here: it resets the keyboard layouts and takes Super+Space away from kb-switch.py.
+# No IBus here: it resets the keyboard layouts and takes Super+Space away from mini-de-shell.
 # install.sh also tells im-config not to start it (~/.xinputrc).
 export GTK_IM_MODULE=gtk-im-context-simple
 export QT_IM_MODULE=compose

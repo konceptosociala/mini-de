@@ -336,10 +336,10 @@
     <mousebind button="A-Left" action="Drag">
       <action name="If">
         <maximizedhorizontal>yes</maximizedhorizontal>
-        <then><action name="Execute"><command>sh -c "~/.config/openbox/drag-unmaximize.py"</command></action></then>
+        <then><action name="Execute"><command>sh -c "exec ~/.local/bin/mini-de-wm unmaximize"</command></action></then>
         <else><action name="If">
           <maximizedvertical>yes</maximizedvertical>
-          <then><action name="Execute"><command>sh -c "~/.config/openbox/drag-unmaximize.py"</command></action></then>
+          <then><action name="Execute"><command>sh -c "exec ~/.local/bin/mini-de-wm unmaximize"</command></action></then>
           <else><action name="Move"/></else>
         </action></else>
       </action>
@@ -384,10 +384,10 @@
     <mousebind button="Left" action="Drag">
       <action name="If">
         <maximizedhorizontal>yes</maximizedhorizontal>
-        <then><action name="Execute"><command>sh -c "~/.config/openbox/drag-unmaximize.py title"</command></action></then>
+        <then><action name="Execute"><command>sh -c "exec ~/.local/bin/mini-de-wm unmaximize title"</command></action></then>
         <else><action name="If">
           <maximizedvertical>yes</maximizedvertical>
-          <then><action name="Execute"><command>sh -c "~/.config/openbox/drag-unmaximize.py title"</command></action></then>
+          <then><action name="Execute"><command>sh -c "exec ~/.local/bin/mini-de-wm unmaximize title"</command></action></then>
           <else><action name="Move"/></else>
         </action></else>
       </action>

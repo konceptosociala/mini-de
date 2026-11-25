@@ -2,7 +2,7 @@
 Type=Application
 Name=Mini DE Settings
 Comment=Sound, wallpaper and other settings of Mini DE
-Exec=@CONF@/openbox/settings.py
+Exec=@HOME@/.local/bin/mini-de-settings
 Icon=preferences-desktop
 Categories=Settings;GTK;
 Keywords=sound;volume;microphone;wallpaper;background;settings;

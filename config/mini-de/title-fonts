@@ -1,6 +1,6 @@
 # Titlebar font sizes: size, padding.width, padding.height of the Openbox theme.
 # Measured so that the titlebar stays 36 px high and the round buttons keep their spacing,
-# which is what picom/round-buttons.glsl expects. Read by install.sh and settings.py.
+# which is what picom/round-buttons.glsl expects. Read by install.sh and mini-de-settings.
 11 12 8
 12 10 7
 13 10 7

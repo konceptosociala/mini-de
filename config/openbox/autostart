@@ -17,9 +17,10 @@ pkill -x ibus-daemon      # in case something started it anyway; see environment
 # Like GNOME does: without it some programs (Alacritty, winit, Bevy) scale by the physical size of the screen
 echo "Xft.dpi: $DPI" | xrdb -merge
 
-# Keyboard; Super+Space is handled by kb-switch.py
+# Keyboard layouts; they are switched by mini-de-shell
 setxkbmap -layout "$LAYOUTS" -variant "$VARIANTS" -option ''
-"$CONF/openbox/kb-switch.py" &
+# Launcher on Super, windows on Alt+Tab, layouts on Super+Space; started again after a crash
+(n=0; until "$HOME/.local/bin/mini-de-shell" || [ $((n += 1)) -ge 5 ]; do sleep 1; done) &
 
 # Touchpad
 for id in $(xinput list | grep -i touchpad | grep -o 'id=[0-9]*' | cut -d= -f2); do
@@ -45,10 +46,8 @@ xss-lock -- i3lock -n -c "${LOCK_COLOR#\#}" &             # lock on suspend
 xset s 600 dpms 600 600 900
 
 # Leftovers of the previous session. When its X server goes away, the portal tries to start its GTK part
-# without a screen; the bus then waits 2 minutes for that, and Plank and the launcher hang waiting for the
-# portal. Starting the services by hand, the GTK part first, ends the wait. A hung launcher keeps its
-# name on the bus, so it has to go too.
-pkill -u "$(id -u)" -f "$CONF/openbox/launcher.py"
+# without a screen; the bus then waits 2 minutes for that, and Plank hangs waiting for the portal.
+# Starting the services by hand, the GTK part first, ends the wait.
 pkill -u "$(id -u)" -x plank
 SERVICES="xdg-desktop-portal-gtk.service xdg-desktop-portal.service bamfdaemon.service"
 timeout 3 systemctl --user stop $SERVICES 2>/dev/null
@@ -60,9 +59,6 @@ pkill -u "$(id -u)" -f "$CONF/openbox/event-sounds.sh watch"
 "$CONF/polybar/launch.sh" &
 "$CONF/openbox/event-sounds.sh" watch &     # charger, battery, Bluetooth
 "$CONF/openbox/event-sounds.sh" play login &
-"$CONF/openbox/keep-visible.py" &           # windows cannot get stuck under the panel
-"$CONF/openbox/resize-edges.py" &           # wide invisible borders for resizing windows
-# Alt+Tab; started again after a crash, as Openbox itself no longer handles the keys
-(n=0; until "$CONF/openbox/alt-tab.py" || [ $((n += 1)) -ge 5 ]; do sleep 1; done) &
-"$CONF/openbox/launcher.py" --gapplication-service &   # launcher, opens on Super
+# Windows cannot get stuck under the panel, and have wide invisible borders for resizing
+(n=0; until "$HOME/.local/bin/mini-de-wm" || [ $((n += 1)) -ge 5 ]; do sleep 1; done) &
 (sleep 1; plank) &

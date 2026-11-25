@@ -45,7 +45,7 @@ adw=$HOME/.themes/adw-gtk3-dark
 
 say "Packages"
 echo "lightdm shared/default-x-display-manager select $(basename "$(cat /etc/X11/default-display-manager 2>/dev/null || echo /usr/sbin/gdm3)")" | sudo debconf-set-selections
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends lightdm lightdm-gtk-greeter fonts-inter yaru-theme-icon
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends lightdm lightdm-gtk-greeter gettext fonts-inter yaru-theme-icon
 
 say "Theme"
 tmp=$(mktemp -d)
@@ -65,24 +65,17 @@ sudo install -m 644 "$wallpaper" "$BACKGROUND"
 
 say "Messages"
 # "Your password is incorrect. Please try again." does not wrap and stretches the login window
-python3 - "$tmp/locale" <<'EOF'
-import os, struct, sys
-MSG = "Your password is incorrect. Please try again."
-HEAD = "Content-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
-for lang, text in {"en": "Wrong password", "uk": "Неправильний пароль", "ru": "Неверный пароль"}.items():
-    pairs = [(b"", HEAD.encode()), (MSG.encode(), text.encode())]
-    ids, strs, data, at = [], [], b"", 28 + 16 * len(pairs)
-    for n in (0, 1):
-        for p in pairs:
-            (strs if n else ids).append((len(p[n]), at + len(data)))
-            data += p[n] + b"\0"
-    mo = struct.pack("<7I", 0x950412de, 0, len(pairs), 28, 28 + 8 * len(pairs), 0, 0)
-    mo += b"".join(struct.pack("<2I", *x) for x in ids + strs) + data
-    d = os.path.join(sys.argv[1], lang + "@minide", "LC_MESSAGES")
-    os.makedirs(d)
-    with open(os.path.join(d, "lightdm-gtk-greeter.mo"), "wb") as f:
-        f.write(mo)
+for message in 'en=Wrong password' 'uk=Неправильний пароль' 'ru=Неверный пароль'; do
+    catalog=$tmp/locale/${message%%=*}@minide/LC_MESSAGES
+    mkdir -p "$catalog"
+    msgfmt -o "$catalog/lightdm-gtk-greeter.mo" - <<EOF
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n"
+
+msgid "Your password is incorrect. Please try again."
+msgstr "${message#*=}"
 EOF
+done
 cat > "$tmp/greeter" <<'EOF'
 #!/bin/sh
 # Starts the LightDM greeter with the messages of mini-de. Installed by login/install.sh.

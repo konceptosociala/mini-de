@@ -6,6 +6,8 @@ REPO=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 CONF=${XDG_CONFIG_HOME:-$HOME/.config}
 DATA=${XDG_DATA_HOME:-$HOME/.local/share}
 STATE=${XDG_STATE_HOME:-$HOME/.local/state}/mini-de
+BUILD=${XDG_CACHE_HOME:-$HOME/.cache}/mini-de/build
+BINARIES=(mini-de-wm mini-de-shell mini-de-settings mini-de-menu)   # built by Meson, installed to ~/.local/bin
 MANIFEST=$STATE/manifest          # lines: installed file <TAB> saved original or -
 
 PACKAGES=(
@@ -14,9 +16,10 @@ PACKAGES=(
     nemo nemo-fileroller gvfs-backends
     network-manager-gnome pulseaudio-utils bluez upower libnotify-bin xdg-utils libglib2.0-bin curl ca-certificates xz-utils fontconfig dconf-cli dbus-bin
     x11-xserver-utils x11-xkb-utils xinput libxi6 libxinerama1 xdg-desktop-portal-gtk
-    librsvg2-common python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 python3-xdg
+    librsvg2-common python3-xdg zip unzip
     fonts-inter fonts-dejavu-core qt5-style-kvantum qt5-gtk-platformtheme qt6-gtk-platformtheme
     yaru-theme-gtk yaru-theme-icon ubuntu-wallpapers
+    meson valac gcc libc6-dev pkgconf libglib2.0-dev libgtk-3-dev libjson-glib-dev libx11-dev libxi-dev libxinerama-dev
 )
 THEME_PACKAGES=(git sassc)
 KVANTUM=(https://github.com/GabePoel/KvLibadwaita 1f4e0bec44b13dabfa1fe4047aa8eeaccf2f3557)
@@ -112,7 +115,7 @@ pick_variant() {
 TOKENS=(VARIANT BG BG_INACTIVE SURFACE SURFACE_HEX BG_HEX GREEN GREEN_HI YELLOW_HI BORDER BORDER_INACTIVE RAISED FG DIM ACCENT ACCENT_TEXT ON_ACCENT
         HILITE HILITE_FG TILE RED CLOSE CLOSE_HOVER CLOSE_PRESSED MAX MAX_HOVER MAX_PRESSED
         ICONIFY ICONIFY_HOVER ICONIFY_PRESSED BTN_OFF BTN_DISABLED ROFI GTK_THEME CONF
-        BLUE YELLOW PURPLE TEAL ORANGE TITLE_SIZE TITLE_WEIGHT TITLE_PADX TITLE_PADY ICON_THEME)
+        BLUE YELLOW PURPLE TEAL ORANGE TITLE_SIZE TITLE_WEIGHT TITLE_PADX TITLE_PADY ICON_THEME HOME)
 # Titlebar font from local.conf (set by the settings app), with the paddings that fit it
 pick_title_font() {
     local line conf=$CONF/mini-de/local.conf
@@ -166,12 +169,32 @@ file_map() {
     find "$REPO/themes" -type f | sort | while read -r f; do
         printf '%s\t%s\n' "$f" "$HOME/.themes/${f#"$REPO/themes/"}"
     done
+    for f in "${BINARIES[@]}"; do printf '%s\t%s\n' "$BUILD/src/$f" "$HOME/.local/bin/$f"; done
     for f in "$REPO"/sounds/*; do printf '%s\t%s\n' "$f" "$DATA/mini-de/sounds/${f##*/}"; done
     for f in "$REPO"/share/applications/*; do printf '%s\t%s\n' "$f" "$DATA/applications/${f##*/}"; done
     if ((FIREFOX)) && f=$(firefox_profile); then
         printf '%s\t%s\n' "$REPO/apps/firefox/userChrome.css.in" "$f/chrome/userChrome.css.in"
         printf '%s\t%s\n' "$REPO/apps/firefox/userContent.css.in" "$f/chrome/userContent.css.in"
     fi
+}
+
+# The system's own compiler and libraries, whatever else (Homebrew, pip) is in PATH
+build_binaries() {
+    local log
+    say "Building: ${BINARIES[*]}"
+    ((!DRY)) || return 0
+    log=$(mktemp)
+    [ "$(cat "$BUILD/.source" 2>/dev/null)" = "$REPO" ] || rm -rf "$BUILD"      # the repository was moved
+    if ! { [ -e "$BUILD/build.ninja" ] || env -u PKG_CONFIG_PATH PATH=/usr/bin:/bin meson setup "$BUILD" "$REPO"; } >"$log" 2>&1 ||
+        ! env -u PKG_CONFIG_PATH PATH=/usr/bin:/bin ninja -C "$BUILD" >>"$log" 2>&1; then
+        tail -n 15 "$log" >&2
+        rm -f "$log"
+        rm -rf "$BUILD"
+        warn "The build failed, nothing was installed. Run without --no-apt if a package is missing."
+        exit 1
+    fi
+    rm -f "$log"
+    echo "$REPO" > "$BUILD/.source"
 }
 
 # Directory of Firefox's default profile
@@ -196,6 +219,7 @@ place() {
         render "$src" > "$RENDERED"
         src=$RENDERED
     fi
+    [[ $src != "$BUILD"/* ]] || mode=copy
     if [ "$mode" = link ]; then
         [ -L "$dst" ] && [ "$(readlink -f "$dst")" = "$src" ] && return 0
     else
@@ -219,6 +243,25 @@ place() {
     CHANGED_FILES+=("$dst")
 }
 
+# Scripts of an earlier version that are not in the repository any more
+remove_stale() {
+    local dst saved left current
+    [ -f "$MANIFEST" ] || return 0
+    current=$(file_map | cut -f2 | sed 's/\.in$//')
+    left=$(mktemp)
+    while IFS=$'\t' read -r dst saved; do
+        if [[ $dst != "$CONF"/openbox/* ]] || grep -qxF -- "$dst" <<< "$current"; then
+            printf '%s\t%s\n' "$dst" "$saved" >> "$left"
+        elif [ -e "$dst" ] || [ -L "$dst" ]; then
+            echo "    no longer used: $dst"
+            run mkdir -p "$(dirname "$BACKUP/${dst#"$HOME"/}")"
+            run mv "$dst" "$BACKUP/${dst#"$HOME"/}"
+            BACKED=1
+        fi
+    done < "$MANIFEST"
+    if ((DRY)); then rm -f "$left"; else chmod --reference="$MANIFEST" "$left"; mv "$left" "$MANIFEST"; fi
+}
+
 install_files() {
     say "Files ($([ "$MODE" = link ] && echo 'symlinks to the repository' || echo 'copies'))"
     BACKUP=$STATE/backup-$(date +%Y%m%d-%H%M%S) BACKED=0 CHANGED=0 CHANGED_FILES=()
@@ -227,6 +270,7 @@ install_files() {
     RENDERED=$(mktemp); chmod 644 "$RENDERED"
     while IFS=$'\t' read -r src dst; do place "$src" "$dst"; done < <(file_map)
     rm -f "$RENDERED"
+    remove_stale
     ((DRY)) || { echo "$VARIANT" > "$STATE/variant"; echo "$YELLOW_BUTTON" > "$STATE/yellow-button"; }
     echo "    changed: $CHANGED"
     ((!BACKED)) || echo "    previous files: $BACKUP"
@@ -264,7 +308,7 @@ uninstall() {
         run sed -i "\\|^user_pref(\"toolkit.legacyUserProfileCustomizations.stylesheets\", true);\$|d" "$p/user.js"
         run rm -f "$STATE/firefox"
     fi
-    run rm -rf "$CONF/Kvantum/mini-de"
+    run rm -rf "$CONF/Kvantum/mini-de" "$BUILD"
     run rmdir --ignore-fail-on-non-empty "$HOME/.themes/"{Gruvbox-Round/openbox-3,Gruvbox-Round,mini-de-IntelliJ/{gtk-2.0,gtk-3.0,plank},mini-de-IntelliJ} 2>/dev/null || true
     ((left)) || run rm -f "$MANIFEST"
     say "Done. Packages, downloaded themes, the dock and $CONF/mini-de/local.conf were kept."
@@ -306,7 +350,7 @@ setup_qt() {
     say "Qt theme: $CONF/Kvantum/mini-de"
     ((!DRY)) || return 0
     for k in SURFACE BG RAISED BORDER DIM FG ACCENT ACCENT_TEXT ON_ACCENT HILITE HILITE_FG; do args+=("$k=${!k}"); done
-    python3 -I "$REPO/apps/qt/build.py" "$DATA/mini-de/kvlibadwaita" "$CONF/Kvantum/mini-de" "${args[@]}" ||
+    "$BUILD/src/mini-de-theme" qt "$DATA/mini-de/kvlibadwaita" "$CONF/Kvantum/mini-de" "${args[@]}" ||
         warn "The Qt theme could not be built"
 }
 
@@ -332,7 +376,9 @@ setup_telegram() {
     for k in SURFACE BG RAISED BORDER DIM FG ACCENT ACCENT_TEXT ON_ACCENT HILITE HILITE_FG; do args+=("$k=${!k}"); done
     mkdir -p "$DATA/mini-de"
     if curl -fsSL -o "$tmp/night" "${TGBASE[0]}" && echo "${TGBASE[1]}  $tmp/night" | sha256sum -c --quiet - &&
-        python3 -I "$REPO/apps/telegram/build.py" "$tmp/night" "$out" "${args[@]}"; then
+        unzip -p "$tmp/night" colors.tdesktop-theme > "$tmp/colors" && mkdir "$tmp/theme" &&
+        "$BUILD/src/mini-de-theme" telegram "$tmp/colors" "$tmp/theme" "${args[@]}" &&
+        (cd "$tmp/theme" && zip -qX "$tmp/new.zip" colors.tdesktop-theme tiled.png) && mv "$tmp/new.zip" "$out"; then
         touch "$STATE/telegram"
         echo "    send this file to Saved Messages in Telegram, click it there and apply the theme"
     else
@@ -417,22 +463,18 @@ install_fonts() {
 
 # ── settings of this machine ────────────────────────────────────
 detect_layouts() {   # "layouts variants": from GNOME, else from X, else us
-    python3 - <<'PY' 2>/dev/null || echo "us -"
-import re, subprocess
-def out(*a):
-    try: return subprocess.run(a, capture_output=True, text=True).stdout
-    except OSError: return ""
-found = re.findall(r"\('xkb', '([^']+)'\)", out("gsettings", "get", "org.gnome.desktop.input-sources", "sources"))
-pairs = [(f.split("+") + [""])[:2] for f in found]
-if not pairs:
-    q = dict(l.split(":", 1) for l in out("setxkbmap", "-query").splitlines() if ":" in l)
-    ls = q.get("layout", "us").strip().split(",")
-    vs = (q.get("variant", "").strip().split(",") + [""] * 4)
-    pairs = list(dict.fromkeys(zip(ls, vs)))
-pairs = pairs[:4]
-v = ",".join(p[1] for p in pairs)
-print(",".join(p[0] for p in pairs), v if v.strip(",") else "-")
-PY
+    local found names variants
+    found=$(gsettings get org.gnome.desktop.input-sources sources 2>/dev/null | grep -oP "\('xkb', '\K[^']+") || true
+    if [ -z "$found" ]; then
+        # layouts and variants in the same order, as name+variant
+        names=$(setxkbmap -query 2>/dev/null | sed -n 's/^layout: *//p') || true
+        variants=$(setxkbmap -query 2>/dev/null | sed -n 's/^variant: *//p') || true
+        found=$(paste -d+ <(tr , '\n' <<< "${names:-us}") <(tr , '\n' <<< "$variants") | grep -v '^+' | awk '!seen[$0]++')
+    fi
+    awk -F+ 'NR <= 4 {
+        names = names (NR > 1 ? "," : "") $1
+        variants = variants (NR > 1 ? "," : "") $2
+    } END { print names, variants ~ /[^,]/ ? variants : "-" }' <<< "$found"
 }
 
 install_local_conf() {
@@ -478,6 +520,19 @@ install_dock() {
 # ── running session ──────────────────────────────────────────
 changed() { local f; for f in "${CHANGED_FILES[@]}"; do [[ $f == $1 ]] && return 0; done; return 1; }
 
+restart_binary() {   # name, scripts that it replaced
+    local i
+    pkill -u "$(id -u)" -f "$CONF/openbox/($2)\.py" || true
+    pkill -u "$(id -u)" -x "$1" || true
+    for i in {1..20}; do      # a second one would give up while the first one still runs
+        pgrep -u "$(id -u)" -x "$1" >/dev/null || break
+        sleep 0.1
+    done
+    # with the environment of the session, which programs opened from the launcher inherit
+    xargs -0 -a "/proc/$(pgrep -u "$(id -u)" -x openbox | head -n 1)/environ" \
+        sh -c 'exec env -i "$@" setsid -f "$0" >/dev/null 2>&1' "$HOME/.local/bin/$1" || warn "$1 did not start"
+}
+
 # Apply only what really changed; the launcher and the layout popup reread their colors when they open.
 reload_session() {
     ((!DRY)) && [ -n "${DISPLAY:-}" ] && [ "${XDG_CURRENT_DESKTOP:-}" = OPENBOX ] &&
@@ -486,6 +541,8 @@ reload_session() {
     if changed "*/xsettingsd.conf"; then pkill -HUP -x xsettingsd || true; fi
     if changed "*/polybar/config.ini" || changed "*/openbox/bluetooth.sh" || changed "*/openbox/mic.sh" ||
         changed "*/openbox/battery.sh" || changed "*/openbox/power-profile.sh"; then polybar-msg cmd restart >/dev/null 2>&1 || true; fi
+    if changed "*/bin/mini-de-wm"; then restart_binary mini-de-wm 'keep-visible|resize-edges'; fi
+    if changed "*/bin/mini-de-shell"; then restart_binary mini-de-shell 'alt-tab|kb-switch|launcher'; fi
     if changed "*/event-sounds.sh"; then
         pkill -u "$(id -u)" -f "$CONF/openbox/event-sounds.sh watch" || true
         (env -u ELECTRON_RUN_AS_NODE setsid -f "$CONF/openbox/event-sounds.sh" watch >/dev/null 2>&1) || true
@@ -588,6 +645,7 @@ pick_icon_theme
 [ ! -e "$STATE/firefox" ] || FIREFOX=1
 [ ! -e "$STATE/telegram" ] || TELEGRAM=1
 ((!APT)) || install_packages
+build_binaries
 ((!THEMES)) || install_themes
 if [ "$GTK_THEME" = mini-de-IntelliJ ] && ! have_adw && ((!DRY)); then
     warn "adw-gtk3 is missing, using the GTK theme Yaru-blue-dark"

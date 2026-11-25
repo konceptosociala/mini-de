@@ -1,4 +1,4 @@
-/* variant @VARIANT@, filled in by install.sh --variant; used by launcher.py and kb-switch.py */
+/* variant @VARIANT@, filled in by install.sh --variant; used by mini-de-shell */
 @define-color md_surface @SURFACE@;
 @define-color md_panel @BG@;
 @define-color md_border @BORDER@;
