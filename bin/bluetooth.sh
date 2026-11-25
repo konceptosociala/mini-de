@@ -4,14 +4,15 @@
 last=unset
 
 show() {
-    all=$(busctl --system --timeout=3 --json=short call org.bluez / org.freedesktop.DBus.ObjectManager GetManagedObjects 2>/dev/null)
+    # not --json: in systemd 255 it fails while headphones are connected
+    all=$(busctl --system --timeout=3 call org.bluez / org.freedesktop.DBus.ObjectManager GetManagedObjects 2>/dev/null)
     case $all in
-        *'"Powered":{"type":"b","data":true}'*)
+        *'"Powered" b true'*)
             case $all in
-                *'"Connected":{"type":"b","data":true}'*) out="%{F$ACTIVE}󰂱%{F-}" ;;
+                *'"Connected" b true'*) out="%{F$ACTIVE}󰂱%{F-}" ;;
                 *) out="%{F$NORMAL}󰂯%{F-}" ;;
             esac ;;
-        *'"Powered":'*) out="%{F$DIM}󰂲%{F-}" ;;
+        *'"Powered" b false'*) out="%{F$DIM}󰂲%{F-}" ;;
         *) out= ;;               # no adapter: the module is hidden
     esac
     [ "$out" = "$last" ] || printf '%s\n' "$out"

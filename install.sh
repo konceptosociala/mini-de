@@ -10,8 +10,9 @@ MANIFEST=$STATE/manifest          # lines: installed file <TAB> saved original o
 
 PACKAGES=(
     openbox polybar plank rofi picom feh dunst lxpolkit playerctl
-    xss-lock i3lock xsettingsd flameshot alacritty nautilus
-    network-manager-gnome pulseaudio-utils bluez upower libnotify-bin libglib2.0-bin curl ca-certificates xz-utils fontconfig dconf-cli dbus-bin
+    xss-lock i3lock xsettingsd flameshot alacritty
+    nemo nemo-fileroller gvfs-backends
+    network-manager-gnome pulseaudio-utils bluez upower libnotify-bin xdg-utils libglib2.0-bin curl ca-certificates xz-utils fontconfig dconf-cli dbus-bin
     x11-xserver-utils x11-xkb-utils xinput libxi6 libxinerama1 xdg-desktop-portal-gtk
     librsvg2-common python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 python3-xdg
     fonts-inter fonts-dejavu-core qt5-style-kvantum qt5-gtk-platformtheme qt6-gtk-platformtheme
@@ -38,13 +39,15 @@ Usage: ./install.sh [options]
                 (remembered; minimize at first)
   --prompt      also use the colored bash prompt (adds one line to ~/.bashrc; remembered)
   --firefox     also style Firefox (userChrome.css in the default profile; remembered)
+  --default-firefox
+                make Firefox the default browser (once, not remembered)
   --telegram    also build a Telegram Desktop theme file (remembered)
   --dry-run     show what would be done without changing anything
   --uninstall   remove what was installed and restore previous files (packages stay)
 EOF
 }
 
-MODE=copy APT=1 THEMES=1 DRY=0 ACTION=install VARIANT= YELLOW_BUTTON= PROMPT=0 FIREFOX=0 TELEGRAM=0 WALLPAPERS=1
+MODE=copy APT=1 THEMES=1 DRY=0 ACTION=install VARIANT= YELLOW_BUTTON= PROMPT=0 FIREFOX=0 DEFAULT_FIREFOX=0 TELEGRAM=0 WALLPAPERS=1
 while (($#)); do
     a=$1; shift
     case $a in
@@ -56,6 +59,7 @@ while (($#)); do
         --no-wallpapers) WALLPAPERS=0 ;;
         --prompt) PROMPT=1 ;;
         --firefox) FIREFOX=1 ;;
+        --default-firefox) DEFAULT_FIREFOX=1 ;;
         --telegram) TELEGRAM=1 ;;
         --no-apt) APT=0 ;;
         --no-themes) THEMES=0 ;;
@@ -480,7 +484,8 @@ reload_session() {
         pgrep -u "$(id -u)" -x openbox >/dev/null || return 0
     if changed "*/openbox/rc.xml" || changed "*/openbox/menu.xml" || changed "*/openbox-3/*"; then openbox --reconfigure || true; fi
     if changed "*/xsettingsd.conf"; then pkill -HUP -x xsettingsd || true; fi
-    if changed "*/polybar/config.ini"; then polybar-msg cmd restart >/dev/null 2>&1 || true; fi
+    if changed "*/polybar/config.ini" || changed "*/openbox/bluetooth.sh" || changed "*/openbox/mic.sh" ||
+        changed "*/openbox/battery.sh" || changed "*/openbox/power-profile.sh"; then polybar-msg cmd restart >/dev/null 2>&1 || true; fi
     if changed "*/event-sounds.sh"; then
         pkill -u "$(id -u)" -f "$CONF/openbox/event-sounds.sh watch" || true
         (env -u ELECTRON_RUN_AS_NODE setsid -f "$CONF/openbox/event-sounds.sh" watch >/dev/null 2>&1) || true
@@ -516,10 +521,60 @@ nm_applet_icon() {
     run "${cmd[@]}" || warn "Could not change the nm-applet icon setting"
 }
 
+# ── default browser ──────────────────────────────────────────
+BROWSER_TYPES=(x-scheme-handler/http x-scheme-handler/https x-scheme-handler/about x-scheme-handler/unknown text/html application/xhtml+xml)
+firefox_desktop() {   # Firefox as a package, snap or flatpak
+    local id d
+    for id in firefox.desktop firefox_firefox.desktop org.mozilla.firefox.desktop; do
+        for d in "$DATA/applications" /usr/local/share/applications /usr/share/applications /var/lib/snapd/desktop/applications \
+                 "$DATA/flatpak/exports/share/applications" /var/lib/flatpak/exports/share/applications; do
+            if [ -e "$d/$id" ]; then echo "$id"; return; fi
+        done
+    done
+    return 1
+}
+default_firefox() {
+    local id old
+    ((DEFAULT_FIREFOX)) || return 0
+    id=$(firefox_desktop) || { warn "Firefox is not installed, the default browser stays."; return 0; }
+    old=$(xdg-mime query default x-scheme-handler/https 2>/dev/null) || old=
+    say "Default browser: $id"
+    run xdg-mime default "$id" "${BROWSER_TYPES[@]}" || { warn "Could not set the default browser"; return 0; }
+    ((DRY)) || [ "$old" = "$id" ] || [ -z "$old" ] || echo "$old" > "$STATE/default-browser"
+}
+restore_browser() {   # unless another browser was chosen since then
+    local old
+    [ -s "$STATE/default-browser" ] || return 0
+    old=$(cat "$STATE/default-browser")
+    if [ "$(xdg-mime query default x-scheme-handler/https 2>/dev/null)" = "$(firefox_desktop)" ]; then
+        run xdg-mime default "$old" "${BROWSER_TYPES[@]}" || warn "Could not restore the default browser $old"
+    fi
+    run rm -f "$STATE/default-browser"
+}
+
+# ── file manager ─────────────────────────────────────────────
+# Nemo takes the terminal for "Open in Terminal" from Cinnamon's settings, where it is GNOME's.
+# A terminal chosen by the user is left alone.
+NEMO_TERMINAL=/org/cinnamon/desktop/applications/terminal
+nemo_terminal() {   # set|unset
+    local bus=() cur
+    [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] || bus=(dbus-run-session --)
+    cur=$(dconf read $NEMO_TERMINAL/exec 2>/dev/null) || cur=
+    case $1:$cur in
+        set:)
+            run "${bus[@]}" dconf write $NEMO_TERMINAL/exec "'alacritty'" &&
+                run "${bus[@]}" dconf write $NEMO_TERMINAL/exec-arg "'-e'" || warn "Could not set the terminal of Nemo" ;;
+        "unset:'alacritty'")
+            run "${bus[@]}" dconf reset -f $NEMO_TERMINAL/ || warn "Could not reset the terminal of Nemo" ;;
+    esac
+}
+
 # ── main ───────────────────────────────────────────────────
 if [ "$ACTION" = uninstall ]; then
     uninstall
     nm_applet_icon true
+    nemo_terminal unset
+    restore_browser
     if grep -qs "created by mini-de" "$HOME/.xinputrc"; then run rm -f "$HOME/.xinputrc"; fi
     exit
 fi
@@ -543,10 +598,12 @@ install_files
 install_local_conf
 install_dock
 nm_applet_icon false
+nemo_terminal set
 disable_ibus
 setup_qt
 setup_prompt
 setup_firefox
+default_firefox
 setup_telegram
 install_wallpapers
 [ -e /usr/share/xsessions/openbox.desktop ] || warn "No Openbox session in /usr/share/xsessions: the login screen will not offer it."

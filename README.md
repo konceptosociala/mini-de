@@ -46,6 +46,7 @@ it would do, use `./install.sh --dry-run`.
 | `--yellow-button B` | which window button is yellow: `minimize` or `maximize` |
 | `--prompt` | colored bash prompt; adds one line to `~/.bashrc` |
 | `--firefox` | style Firefox; choose *System theme* in it afterwards |
+| `--default-firefox` | make Firefox the default browser; not remembered |
 | `--telegram` | build a Telegram Desktop theme file |
 | `--link` | symlink to the repository instead of copying |
 | `--no-apt`, `--no-themes`, `--no-wallpapers` | skip packages, downloaded themes or wallpapers |
