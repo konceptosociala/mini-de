@@ -11,7 +11,7 @@ MANIFEST=$STATE/manifest          # lines: installed file <TAB> saved original o
 PACKAGES=(
     openbox polybar plank rofi picom feh dunst lxpolkit playerctl
     xss-lock i3lock xsettingsd flameshot alacritty nautilus
-    network-manager-gnome pulseaudio-utils pavucontrol libnotify-bin libglib2.0-bin curl ca-certificates xz-utils fontconfig dconf-cli dbus-bin
+    network-manager-gnome pulseaudio-utils bluez upower libnotify-bin libglib2.0-bin curl ca-certificates xz-utils fontconfig dconf-cli dbus-bin
     x11-xserver-utils x11-xkb-utils xinput libxi6 libxinerama1 xdg-desktop-portal-gtk
     librsvg2-common python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 python3-xdg
     fonts-inter fonts-dejavu-core qt5-style-kvantum qt5-gtk-platformtheme qt6-gtk-platformtheme
@@ -162,6 +162,7 @@ file_map() {
     find "$REPO/themes" -type f | sort | while read -r f; do
         printf '%s\t%s\n' "$f" "$HOME/.themes/${f#"$REPO/themes/"}"
     done
+    for f in "$REPO"/sounds/*; do printf '%s\t%s\n' "$f" "$DATA/mini-de/sounds/${f##*/}"; done
     for f in "$REPO"/share/applications/*; do printf '%s\t%s\n' "$f" "$DATA/applications/${f##*/}"; done
     if ((FIREFOX)) && f=$(firefox_profile); then
         printf '%s\t%s\n' "$REPO/apps/firefox/userChrome.css.in" "$f/chrome/userChrome.css.in"
@@ -480,6 +481,10 @@ reload_session() {
     if changed "*/openbox/rc.xml" || changed "*/openbox/menu.xml" || changed "*/openbox-3/*"; then openbox --reconfigure || true; fi
     if changed "*/xsettingsd.conf"; then pkill -HUP -x xsettingsd || true; fi
     if changed "*/polybar/config.ini"; then polybar-msg cmd restart >/dev/null 2>&1 || true; fi
+    if changed "*/event-sounds.sh"; then
+        pkill -u "$(id -u)" -f "$CONF/openbox/event-sounds.sh watch" || true
+        (env -u ELECTRON_RUN_AS_NODE setsid -f "$CONF/openbox/event-sounds.sh" watch >/dev/null 2>&1) || true
+    fi
     if changed "*/dunstrc" && pkill -x dunst; then (env -u ELECTRON_RUN_AS_NODE setsid -f dunst >/dev/null 2>&1) || true; fi
     if changed "*/picom/*" && pkill -x picom; then      # a clean restart: reloading with SIGUSR1 is suspected of a freeze
         local i

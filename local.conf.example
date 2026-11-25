@@ -17,6 +17,13 @@ WALLPAPER=/usr/share/backgrounds/warty-final-ubuntu.png
 # Scale of programs that follow the screen density: 96 = 100%, 120 = 125%
 #DPI=96
 
+# Sounds of events: 1 or 0
+#SOUND_POWER=1       # charger connected and disconnected
+#SOUND_BATTERY=1     # 20, 10 and 5 % left
+#SOUND_BLUETOOTH=1   # Bluetooth device connected and disconnected
+#SOUND_LOGIN=1
+#SOUND_LOGOUT=0      # logging out, restarting and shutting down wait for it
+
 # Usually detected automatically; uncomment if detection gets it wrong
 #MONITORS_CMD='xrandr --output eDP-1 --primary --auto --output HDMI-1 --auto --above eDP-1'
 #BATTERY=BAT0

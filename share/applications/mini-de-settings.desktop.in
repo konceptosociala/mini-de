@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=mini-de settings
-Comment=Wallpaper and other settings of mini-de
+Name=Mini DE Settings
+Comment=Sound, wallpaper and other settings of Mini DE
 Exec=@CONF@/openbox/settings.py
 Icon=preferences-desktop
 Categories=Settings;GTK;
-Keywords=wallpaper;background;settings;
+Keywords=sound;volume;microphone;wallpaper;background;settings;
 StartupWMClass=mini-de-settings

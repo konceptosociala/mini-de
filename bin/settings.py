@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-"""mini-de settings. Every page is a class with ID, TITLE and ICON added to PAGES."""
-import os, re, shlex, shutil, subprocess, sys, tempfile, xml.dom.minidom
+"""Mini DE settings: settings.py [page]. Every page is a class with ID, TITLE and ICON added to PAGES."""
+import json, os, re, shlex, shutil, subprocess, sys, tempfile, xml.dom.minidom
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
@@ -16,6 +16,7 @@ CSS = b"""
 .wallpaper:hover { background: alpha(currentColor, 0.08); }
 .wallpaper.current { border-color: @theme_selected_bg_color; }
 .page-title { font-size: 20px; font-weight: 700; }
+.section-title { font-size: 15px; font-weight: 600; }
 """
 
 
@@ -418,17 +419,285 @@ class IconsPage(Gtk.Box):
             r.check.set_opacity(1 if r.name == self.current else 0)
 
 
-PAGES = [WallpaperPage, IconsPage, WindowsPage]
+# ── sound ────────────────────────────────────────────────────
+PACTL_ENV = dict(os.environ, LC_ALL="C.UTF-8")      # otherwise its JSON may have commas in numbers
+EVENT_SOUNDS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "event-sounds.sh")
+# variable in local.conf, default, label, details, sound to play
+EVENTS = (("SOUND_POWER", "1", "Charger", "connected and disconnected", "plug"),
+          ("SOUND_BATTERY", "1", "Low battery", "20, 10 and 5 % left", "battery-20"),
+          ("SOUND_BLUETOOTH", "1", "Bluetooth", "device connected and disconnected", "connected"),
+          ("SOUND_LOGIN", "1", "Login", "", "login"),
+          ("SOUND_LOGOUT", "0", "Logout and shutdown", "the computer waits two seconds for it", "logout"))
+
+
+def pactl(*args):
+    r = subprocess.run(["pactl", *args], capture_output=True, text=True, env=PACTL_ENV, timeout=5)
+    if r.returncode:
+        raise OSError(r.stderr.strip() or "pactl failed")
+    return r.stdout
+
+
+def device_title(dev):
+    """Built-in cards are called by what they drive, everything else by its own name."""
+    props = dev.get("properties", {})
+    if props.get("device.bus") == "pci" and props.get("device.profile.description"):
+        return props["device.profile.description"]
+    return dev.get("description") or dev["name"]
+
+
+def usable(dev):
+    ports = dev.get("ports") or []
+    return not ports or any(p.get("availability") != "not available" for p in ports)
+
+
+class DeviceSection(Gtk.Box):
+    """Outputs or inputs: choice of the default device, its volume and port."""
+    def __init__(self, page, kind, title, icons):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.page, self.kind, self.icons = page, kind, icons
+        self.device, self.shown, self.busy, self.volume_id, self.hold = None, None, False, 0, 0
+        label = Gtk.Label(label=title, xalign=0)
+        label.get_style_context().add_class("section-title")
+        self.pack_start(label, False, False, 0)
+
+        bar = Gtk.Box(spacing=8)
+        self.mute = Gtk.ToggleButton(relief=Gtk.ReliefStyle.NONE, tooltip_text="Mute")
+        self.mute.set_image(Gtk.Image.new_from_icon_name(icons[0], Gtk.IconSize.BUTTON))
+        self.mute.connect("toggled", self.on_mute)
+        self.scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
+        self.scale.set_value_pos(Gtk.PositionType.RIGHT)
+        self.scale.connect("format-value", lambda _s, v: f"{v:.0f} %")
+        self.scale.connect("value-changed", self.on_volume)
+        bar.pack_start(self.mute, False, False, 0)
+        bar.pack_start(self.scale, True, True, 0)
+        self.bar = bar
+        self.pack_start(bar, False, False, 0)
+
+        self.list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.pack_start(self.list, False, False, 0)
+        self.port_row = Gtk.Box(spacing=8, no_show_all=True)
+        self.port_label = Gtk.Label(label="Port", xalign=0)
+        self.port = Gtk.ComboBoxText()
+        self.port.connect("changed", self.on_port)
+        self.port_row.pack_start(self.port_label, False, False, 0)
+        self.port_row.pack_start(self.port, False, False, 0)
+        self.pack_start(self.port_row, False, False, 0)
+
+    def refresh(self, devices, default):
+        self.busy = True         # the changes below are not made by the user
+        try:
+            devices = [d for d in devices if not d["name"].endswith(".monitor") and (usable(d) or d["name"] == default)]
+            self.device = next((d for d in devices if d["name"] == default), None)
+            shown = [(d["name"], device_title(d)) for d in devices]
+            if shown != self.shown:
+                self.shown = shown
+                self.fill(shown)
+            for b in self.list.get_children():
+                if isinstance(b, Gtk.RadioButton):
+                    b.set_active(b.device == default)
+            self.bar.set_sensitive(self.device is not None)
+            self.mute.set_active(bool(self.device and self.device["mute"]))
+            self.mute.get_image().set_from_icon_name(self.icons[1 if self.mute.get_active() else 0], Gtk.IconSize.BUTTON)
+            if self.device and not self.volume_id and GLib.get_monotonic_time() > self.hold:
+                self.scale.set_value(max(self.levels(), default=0))
+            ports = [p for p in (self.device or {}).get("ports") or [] if p.get("availability") != "not available"]
+            self.port.remove_all()
+            for p in ports:
+                self.port.append(p["name"], p["description"])
+            if self.device:
+                self.port.set_active_id(self.device.get("active_port"))
+            for w in (self.port_row, self.port_label, self.port):
+                w.set_visible(len(ports) > 1)
+        finally:
+            self.busy = False
+
+    def fill(self, shown):
+        for c in self.list.get_children():
+            c.destroy()
+        group = Gtk.RadioButton()        # never shown: lets every visible button be off
+        self.hidden = group
+        for name, title in shown:
+            b = Gtk.RadioButton.new_with_label_from_widget(group, title)
+            b.device = name
+            b.get_child().set_ellipsize(Pango.EllipsizeMode.END)
+            b.connect("toggled", self.on_device)
+            self.list.pack_start(b, False, False, 0)
+        if not shown:
+            self.list.pack_start(Gtk.Label(label="Nothing is connected", xalign=0), False, False, 0)
+        self.list.show_all()
+
+    def levels(self):
+        return [int(v["value_percent"].rstrip("%")) for v in self.device["volume"].values()]
+
+    def on_device(self, button):
+        if not self.busy and button.get_active():
+            self.page.run(f"set-default-{self.kind}", button.device)
+
+    def on_mute(self, button):
+        if not self.busy and self.device:
+            self.page.run(f"set-{self.kind}-mute", self.device["name"], "1" if button.get_active() else "0")
+
+    def on_volume(self, _scale):
+        if not self.busy and self.device and not self.volume_id:
+            self.volume_id = GLib.timeout_add(40, self.send_volume)
+
+    def send_volume(self):
+        self.volume_id = 0
+        if self.device:
+            self.hold = GLib.get_monotonic_time() + 300000      # its own echo must not move the slider back
+            old, target = self.levels(), round(self.scale.get_value())
+            top = max(old, default=0)                           # the balance is kept
+            new = [round(v * target / top) if top else target for v in old]
+            self.page.run(f"set-{self.kind}-volume", self.device["name"], *(f"{v}%" for v in new))
+        return False
+
+    def on_port(self, combo):
+        if not self.busy and self.device and combo.get_active_id():
+            self.page.run(f"set-{self.kind}-port", self.device["name"], combo.get_active_id())
+
+
+class SoundPage(Gtk.ScrolledWindow):
+    ID, TITLE, ICON = "sound", "Sound", "preferences-desktop-sound"
+
+    def __init__(self, window):
+        super().__init__(hscrollbar_policy=Gtk.PolicyType.NEVER)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, margin=20)
+        self.add(box)
+        title = Gtk.Label(label=self.TITLE, xalign=0)
+        title.get_style_context().add_class("page-title")
+        box.pack_start(title, False, False, 0)
+        self.error = Gtk.Label(xalign=0, no_show_all=True, wrap=True)
+        self.error.get_style_context().add_class("error")
+        box.pack_start(self.error, False, False, 0)
+
+        self.output = DeviceSection(self, "sink", "Output", ("audio-volume-high-symbolic", "audio-volume-muted-symbolic"))
+        self.input = DeviceSection(self, "source", "Input", ("audio-input-microphone-symbolic", "microphone-sensitivity-muted-symbolic"))
+        box.pack_start(self.output, False, False, 0)
+        box.pack_start(Gtk.Separator(), False, False, 0)
+        box.pack_start(self.input, False, False, 0)
+        box.pack_start(Gtk.Separator(), False, False, 0)
+        box.pack_start(self.events(), False, False, 0)
+
+        self.refresh_id, self.watcher, self.closed = 0, None, False
+        self.connect("destroy", self.on_destroy)
+        self.refresh()
+        self.watch()
+
+    def events(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        label = Gtk.Label(label="Event sounds", xalign=0)
+        label.get_style_context().add_class("section-title")
+        box.pack_start(label, False, False, 0)
+        for name, default, text, details, sound in EVENTS:
+            row = Gtk.Box(spacing=10)
+            row.pack_start(Gtk.Label(label=text, xalign=0), False, False, 0)
+            about = Gtk.Label(label=details, xalign=0, ellipsize=Pango.EllipsizeMode.END)
+            about.get_style_context().add_class("dim-label")
+            row.pack_start(about, True, True, 0)
+            play = Gtk.Button.new_from_icon_name("media-playback-start-symbolic", Gtk.IconSize.BUTTON)
+            play.set_relief(Gtk.ReliefStyle.NONE)
+            play.set_tooltip_text("Play")
+            play.connect("clicked", self.on_play, sound)
+            switch = Gtk.Switch(valign=Gtk.Align.CENTER, active=read_setting(name, default) == "1")
+            switch.connect("notify::active", self.on_switch, name)
+            row.pack_start(play, False, False, 0)
+            row.pack_start(switch, False, False, 0)
+            box.pack_start(row, False, False, 0)
+        return box
+
+    def on_play(self, _b, sound):
+        self.spawn([EVENT_SOUNDS, "preview", sound])
+
+    def on_switch(self, switch, _p, name):
+        try:
+            write_setting(name, "1" if switch.get_active() else "0")
+            self.show_error("")
+        except OSError as e:
+            self.show_error(f"Could not be saved: {e}")
+
+    def show_error(self, text):
+        self.error.set_text(text)
+        self.error.set_visible(bool(text))
+
+    def spawn(self, argv):
+        try:
+            Gio.Subprocess.new(argv, Gio.SubprocessFlags.STDOUT_SILENCE).wait_async(None, None)
+        except GLib.Error as e:
+            self.show_error(e.message)
+
+    def run(self, *args):
+        try:
+            pactl(*args)
+            self.show_error("")
+        except (OSError, subprocess.TimeoutExpired) as e:
+            self.show_error(str(e))
+        self.schedule()
+
+    def schedule(self):
+        if not self.refresh_id:
+            self.refresh_id = GLib.timeout_add(80, self.refresh)
+
+    def refresh(self):
+        self.refresh_id = 0
+        try:
+            for section in (self.output, self.input):
+                default = pactl(f"get-default-{section.kind}").strip()
+                section.refresh(json.loads(pactl("-f", "json", "list", section.kind + "s")), default)
+        except (OSError, ValueError, subprocess.TimeoutExpired) as e:
+            self.show_error(f"No connection to the sound server: {e}")
+        return False
+
+    def watch(self):
+        """Follow changes made elsewhere; pactl exits when the sound server restarts."""
+        if self.closed:
+            return False
+        launcher = Gio.SubprocessLauncher.new(Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE)
+        launcher.setenv("LC_ALL", "C", True)
+        try:
+            self.watcher = launcher.spawnv(["pactl", "subscribe"])
+        except GLib.Error as e:
+            self.show_error(e.message)
+            return False
+        stream = Gio.DataInputStream.new(self.watcher.get_stdout_pipe())
+        stream.read_line_async(GLib.PRIORITY_DEFAULT, None, self.on_event)
+        return False
+
+    def on_event(self, stream, result):
+        try:
+            line = stream.read_line_finish_utf8(result)[0]
+        except GLib.Error:
+            line = None
+        if self.closed:
+            return
+        if line is None:
+            GLib.timeout_add_seconds(2, self.watch)
+            self.schedule()
+            return
+        if re.search(r" on (sink|source|card|server)\b(?!-)", line):
+            self.schedule()
+        stream.read_line_async(GLib.PRIORITY_DEFAULT, None, self.on_event)
+
+    def on_destroy(self, _w):
+        self.closed = True
+        for i in (self.refresh_id, self.output.volume_id, self.input.volume_id):
+            if i:
+                GLib.source_remove(i)
+        if self.watcher:
+            self.watcher.force_exit()
+
+
+PAGES = [WallpaperPage, IconsPage, WindowsPage, SoundPage]
 
 
 # ── window ───────────────────────────────────────────────────
 class Window(Gtk.ApplicationWindow):
     def __init__(self, app):
-        super().__init__(application=app, title="mini-de settings", icon_name="preferences-desktop",
+        super().__init__(application=app, title="Mini DE Settings", icon_name="preferences-desktop",
                          default_width=1040, default_height=640)
         self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE)
         self.side = Gtk.ListBox(selection_mode=Gtk.SelectionMode.BROWSE)
         self.side.set_size_request(190, -1)
+        self.rows = {}
         self.side.connect("row-selected", lambda _l, row: row and self.stack.set_visible_child_name(row.page))
         for page in PAGES:
             self.stack.add_named(page(self), page.ID)
@@ -439,18 +708,24 @@ class Window(Gtk.ApplicationWindow):
             row.page = page.ID
             row.add(box)
             self.side.add(row)
+            self.rows[page.ID] = row
         root = Gtk.Box()
         root.pack_start(self.side, False, False, 0)
         root.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 0)
         root.pack_start(self.stack, True, True, 0)
         self.add(root)
         self.show_all()
-        self.side.select_row(self.side.get_row_at_index(0))
+        self.show_page(PAGES[0].ID)
+
+    def show_page(self, page):
+        if page in self.rows:
+            self.side.select_row(self.rows[page])
 
 
 class Program(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id="local.minide.Settings")
+        super().__init__(application_id="local.minide.Settings",
+                         flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -458,8 +733,12 @@ class Program(Gtk.Application):
         css.load_from_data(CSS)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css, 600)
 
-    def do_activate(self):
-        (self.get_active_window() or Window(self)).present()
+    def do_command_line(self, line):
+        window = self.get_active_window() or Window(self)
+        for page in line.get_arguments()[1:2]:
+            window.show_page(page)
+        window.present()
+        return 0
 
 
 GLib.set_prgname("mini-de-settings")

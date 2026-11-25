@@ -27,7 +27,7 @@ font-0 = "Inter:style=Medium:size=13;3"
 font-1 = "Symbols Nerd Font:size=15;3"
 font-2 = "Inter:style=SemiBold:size=13;3"
 font-3 = "DejaVu Sans Mono:size=10;2"
-modules-left = cpu memory sep backlight pulse
+modules-left = cpu memory sep backlight pulse mic
 modules-center = date
 enable-ipc = true
 wm-restack = generic
@@ -35,7 +35,7 @@ cursor-click = pointer
 
 [bar/main]
 inherit = bar/base
-modules-right = tray sep keyboard wlan sep profile battery sep power
+modules-right = tray sep keyboard wlan bluetooth sep profile battery sep power
 
 [bar/side]
 inherit = bar/base
@@ -118,7 +118,19 @@ ramp-volume-1 = 󰖀
 ramp-volume-2 = 󰕾
 ramp-volume-font = 2
 ramp-volume-foreground = ${colors.teal}
-click-right = ~/.config/openbox/sound-settings.sh
+click-right = ~/.config/openbox/settings.py sound &
+
+[module/mic]
+type = custom/script
+exec = ~/.config/openbox/mic.sh
+tail = true
+format-padding = 1
+env-NORMAL = ${colors.purple}
+env-DIM = ${colors.dim}
+click-left = pactl set-source-mute @DEFAULT_SOURCE@ toggle
+click-right = ~/.config/openbox/settings.py sound &
+scroll-up = ~/.config/openbox/volume.sh up 5 source
+scroll-down = ~/.config/openbox/volume.sh down 5 source
 
 ; ── center ──
 [module/date]
@@ -155,21 +167,30 @@ label-layout = %layout%
 type = internal/network
 interface-type = wireless
 interval = 5
-format-connected = %{A1:~/.config/openbox/wifi-menu.py &:}<ramp-signal> <label-connected>%{A}
+format-connected = %{A1:~/.config/openbox/wifi-menu.py &:}<ramp-signal>%{A}
 format-connected-padding = 1
 format-disconnected = %{A1:~/.config/openbox/wifi-menu.py &:}<label-disconnected>%{A}
-format-disconnected-prefix = "󰤭 "
-format-disconnected-prefix-font = 2
 format-disconnected-foreground = ${colors.dim}
 format-disconnected-padding = 1
-label-connected = %essid:0:18:…%
-label-disconnected = off
+label-disconnected = 󰤭
+label-disconnected-font = 2
 ramp-signal-0 = 󰤟
 ramp-signal-1 = 󰤢
 ramp-signal-2 = 󰤥
 ramp-signal-3 = 󰤨
 ramp-signal-font = 2
 ramp-signal-foreground = ${colors.blue}
+
+[module/bluetooth]
+type = custom/script
+exec = ~/.config/openbox/bluetooth.sh
+tail = true
+format-font = 2
+format-padding = 1
+env-NORMAL = ${colors.blue}
+env-ACTIVE = ${colors.teal}
+env-DIM = ${colors.dim}
+click-left = ~/.config/openbox/bluetooth-menu.py &
 
 [module/profile]
 type = custom/script

@@ -14,6 +14,7 @@ mini-de itself is licensed under the [Apache License 2.0](LICENSE). The files be
 | `wallpapers/snowy-peaks.png` | [Alessio Soggetti](https://unsplash.com/photos/a-black-and-white-photo-of-a-mountain-range-xOsSBb-Lkbs) | Unsplash License |
 | `wallpapers/foggy-forest.png` | [Adrien Tutin](https://unsplash.com/photos/a-mountain-covered-in-fog-with-trees-in-the-foreground-Ddxb6fq6cIY) | Unsplash License |
 | `wallpapers/lakeside-mountain.png` | [Diana Rafira](https://unsplash.com/photos/a-large-body-of-water-with-mountains-in-the-background-gSFeS7a7ZkY) | Unsplash License |
+| `sounds/*.oga` | [Ocean Sound Theme](https://invent.kde.org/plasma/ocean-sound-theme) of KDE Plasma, Guilherme Marçal Silva; unmodified, commit `66ee3d17` | [CC BY-SA 4.0](licenses/OceanSoundTheme.txt) |
 
 The wallpapers were resized to 1920x1200 by Unsplash. The Gruvbox variants use the palette of
 [gruvbox](https://github.com/morhetz/gruvbox) by Pavel Pertsev (MIT/X11). `config/openbox/rc.xml.in`

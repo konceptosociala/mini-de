@@ -12,11 +12,12 @@ Python and shell scripts. It installs next to GNOME as a separate session and le
   Hidden apps live in a `.hidden` folder, shown with the eye button or `Ctrl+H`.
   Apps pinned to the dock are left out of the grid.
 - **Keyboard layouts** on `Super+Space` in most recently used order, with an on-screen popup.
-- **Panel** with per-core CPU load, brightness, volume, Wi-Fi menu, power profiles, and a battery that
-  changes color at 20, 10 and 5 %.
+- **Panel** with per-core CPU load, brightness, volume, microphone, Wi-Fi and Bluetooth menus, power
+  profiles, and a battery that changes color at 20, 10 and 5 %.
+- **Event sounds** for the charger, low battery, Bluetooth devices, login and (off by default) logout.
 - **Window handling** Openbox lacks: dragging maximized windows, wide invisible resize borders, and
   windows that cannot get stuck under the panel.
-- **Settings app** for the wallpaper, icon theme and titlebar font.
+- **Settings app** for sound devices, event sounds, the wallpaper, icon theme and titlebar font.
 - **Themes** for GTK 3, Qt 5, rofi, dunst, Plank and Alacritty, plus optional ones for Firefox, Telegram,
   the bash prompt and the LightDM login screen.
 
@@ -81,7 +82,7 @@ GNOME's own screen lock depends on GDM and does not work with LightDM.
 ## Configuration
 
 Settings of one machine live in `~/.config/mini-de/local.conf`, which the installer creates and never
-overwrites: layouts, wallpaper, icon theme, titlebar font, DPI, monitor layout. See
+overwrites: layouts, wallpaper, icon theme, titlebar font, event sounds, DPI, monitor layout. See
 [local.conf.example](local.conf.example). The settings app writes to the same file.
 
 Everything else is edited here and deployed with `./install.sh --no-apt`. Files ending in `.in` are
@@ -96,9 +97,9 @@ templates: `@NAME@` is replaced with a color of the chosen variant. A new palett
 | `themes/` | Openbox theme and the recolored GTK theme |
 | `variants/` | color palettes |
 | `apps/`, `login/` | Qt, Firefox and Telegram themes, LightDM |
-| `fonts/`, `wallpapers/` | bundled fonts and pictures |
+| `fonts/`, `wallpapers/`, `sounds/` | bundled fonts, pictures and sounds |
 
 ## License
 
-[Apache License 2.0](LICENSE). Bundled fonts, wallpapers and other third-party files keep their own
+[Apache License 2.0](LICENSE). Bundled fonts, wallpapers, sounds and other third-party files keep their own
 licenses, see [THIRD-PARTY.md](THIRD-PARTY.md).

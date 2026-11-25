@@ -55,7 +55,11 @@ timeout 3 systemctl --user stop $SERVICES 2>/dev/null
 timeout 3 systemctl --user reset-failed $SERVICES 2>/dev/null
 for s in $SERVICES; do timeout 5 systemctl --user start "$s" 2>/dev/null; done
 
+pkill -u "$(id -u)" -f "$CONF/openbox/event-sounds.sh watch"
+
 "$CONF/polybar/launch.sh" &
+"$CONF/openbox/event-sounds.sh" watch &     # charger, battery, Bluetooth
+"$CONF/openbox/event-sounds.sh" play login &
 "$CONF/openbox/keep-visible.py" &           # windows cannot get stuck under the panel
 "$CONF/openbox/resize-edges.py" &           # wide invisible borders for resizing windows
 # Alt+Tab; started again after a crash, as Openbox itself no longer handles the keys
